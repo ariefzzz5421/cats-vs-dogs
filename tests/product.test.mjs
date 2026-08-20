@@ -69,3 +69,17 @@ test("ships transparent, optimized battle cutouts for every hero", async () => {
     assert.ok(asset.size < 55_000, `${hero} battle cutout should stay below 55 KB`);
   }
 });
+
+test("keeps reduced-motion, low-power, and mobile orientation safeguards", async () => {
+  const experience = await readFile(new URL("../app/components/GameExperience.tsx", import.meta.url), "utf8");
+  const arena = await readFile(new URL("../app/components/GameArena2D.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/classic-game.css", import.meta.url), "utf8");
+
+  assert.match(experience, /prefers-reduced-motion: reduce/);
+  assert.match(experience, /lowPowerDevice/);
+  assert.match(arena, /if \(reducedMotion\)/);
+  assert.match(arena, /lowPowerDevice \? 3 : 6/);
+  assert.match(styles, /orientation: landscape/);
+  assert.match(styles, /orientation: portrait/);
+  assert.match(styles, /prefers-reduced-motion: reduce/);
+});
