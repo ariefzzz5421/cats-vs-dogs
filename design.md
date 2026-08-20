@@ -9,12 +9,12 @@ Playful arcade. Family-friendly, tactile, competitive, and readable at a glance.
 ## Macrostructure family
 
 - Lobby: compact Workbench — mode, fighters, and start action stay in one game-menu viewport where possible.
-- Battle: full-bleed stage — arena owns the viewport; HUD overlays only essential state.
+- Battle: stage-first shell — arena owns the flexible center while HP/wind and controls sit in dedicated rows outside the projectile path.
 - Results: short arena overlay — no navigation away from the match.
 
 ## Theme
 
-- Warm cream menus, dark navy game chrome, orange Cat energy, cyan Dog energy, coral impact, yellow wind/power.
+- Warm cream menus, dark navy game chrome, cyan Cat energy, orange-red Dog energy, coral impact, yellow wind/power.
 - Accent color is reserved for current turn, wind, power, damage, selection, and focus.
 - No glass panels, decorative gradients, marketing badges, or non-game sections.
 
@@ -49,6 +49,7 @@ Playful arcade. Family-friendly, tactile, competitive, and readable at a glance.
 - Angle, power, wind, HP, phase, and whose turn are always visible.
 - No perfect full trajectory preview; only a short aiming hint.
 - Every projectile result comes from deterministic simulation.
+- No Three.js runtime, free camera, or procedural 3D geometry in battle.
 - Mobile supports drag-to-aim and hold-to-fire; portrait receives a rotate hint.
 
 ## Exports

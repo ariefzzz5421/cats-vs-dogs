@@ -1,6 +1,6 @@
 # Cats vs Dogs — Backyard Rumble
 
-An original side-on browser artillery game built with Next.js, React Three Fiber, Three.js, and PeerJS.
+An original side-on browser artillery game built with Next.js, React, CSS, and PeerJS. The battle uses a lightweight 2D DOM renderer driven by the deterministic physics engine.
 
 ## Game modes
 

@@ -9,11 +9,11 @@ All visual assets must look like one original game. Classic backyard artillery g
 - Arms and tails have clean, broad arcs that remain legible at 96 px.
 - Silhouettes differ by ears, muzzle, torso width, tail, and one signature accessory.
 
-## Edge and material treatment
+## Edge and sprite treatment
 
-- Clean soft-edged 3D forms with restrained fur clumping, not photoreal fur.
-- No black cartoon outline. Separation comes from value, rim light, and simple material breaks.
-- Avoid plastic mascot gloss and feature-film imitation. Surfaces are matte, tactile, and game-like.
+- Clean illustrated cutout characters with broad value separation and restrained fur shapes.
+- Use one consistent edge treatment across all six raster portraits; avoid mismatched outline weights.
+- Avoid photoreal fur, plastic mascot gloss, and feature-film imitation. Shapes stay matte, tactile, and readable at game scale.
 
 ## Color philosophy
 
@@ -25,12 +25,12 @@ All visual assets must look like one original game. Classic backyard artillery g
 - Snow: warm white, coral collar.
 - Accessories provide the strongest small accent; fur carries the silhouette.
 
-## Lighting and camera
+## Lighting and viewpoint
 
-- Side-facing three-quarter view, eye level slightly above the paws.
+- Fixed side-facing three-quarter view, eye level slightly above the paws.
 - Warm key light from upper-left, cool rim from upper-right.
-- Transparent/chroma-key asset sources have no floor, cast shadow, or environmental reflection.
-- Battle models use the same front three-quarter bias while physics stay on the X/Y plane.
+- Transparent or tightly keyed sprite sources have no baked floor or environmental reflection.
+- Character select, battle, hit, and victory states reuse the same portrait identity. Battle physics and presentation remain on the X/Y plane.
 
 ## Facial design
 
@@ -50,6 +50,7 @@ All visual assets must look like one original game. Classic backyard artillery g
 - Charge builds anticipation through lean and squash; it never moves the fighter's feet.
 - Throw completes within roughly 600 ms; impact reactions within roughly 450 ms.
 - Miss taunts are brief and never delay the next turn.
+- State motion uses a grounded portrait wrapper so the contact point never slides.
 - Reduced-motion mode keeps expression/state changes but removes shake and large displacement.
 
 ## Environment

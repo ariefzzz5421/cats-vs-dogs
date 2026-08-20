@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DataConnection, Peer as PeerInstance } from "peerjs";
 
@@ -10,13 +9,9 @@ import { BOT_PROFILES, makeBotShot } from "@/lib/game/bot";
 import { DEFAULT_ANGLES, PHYSICS, opponentOf, projectileFor } from "@/lib/game/constants";
 import { getCatHero, getDogHero } from "@/lib/game/roster";
 import type { ActiveShot, CatHeroId, Difficulty, DogHeroId, GameMode, GamePhase, HealthState, ImpactResult, MatchSnapshot, ShotInput, Side } from "@/lib/game/types";
+import { GameArena2D } from "./GameArena2D";
 import { BattleHUD } from "./game/BattleHUD";
 import { GameLobby } from "./game/GameLobby";
-
-const GameArena3D = dynamic(() => import("./GameArena3D").then((module) => module.GameArena3D), {
-  ssr: false,
-  loading: () => <div className="arena-loading" role="status"><span />Building the backyard…</div>,
-});
 
 type OnlineRole = Side | null;
 type PeerMessage =
@@ -287,7 +282,7 @@ export function GameExperience() {
   if (phase === "LOBBY") return <GameLobby mode={mode} difficulty={difficulty} catHero={catHero} dogHero={dogHero} roomCode={roomCode} joinCode={joinCode} connectionState={connectionState} connectionMessage={connectionMessage} onMode={(next) => { playGameSound("ui"); setMode(next); }} onDifficulty={setDifficulty} onCatHero={(hero) => { setCatHero(hero); if (mode === "online" && onlineRole === "cat") connectionRef.current?.send({ type: "selection", side: "cat", hero } satisfies PeerMessage); }} onDogHero={(hero) => { setDogHero(hero); if (mode === "online" && onlineRole === "dog") connectionRef.current?.send({ type: "selection", side: "dog", hero } satisfies PeerMessage); }} onJoinCode={setJoinCode} onCreateRoom={createRoom} onJoinRoom={joinRoom} onCopyRoom={() => { if (roomCode) void navigator.clipboard.writeText(roomCode); setConnectionMessage("Room code copied."); }} onStart={() => beginMatch(mode, false)} />;
 
   return (
-    <main className="battle-screen">
+    <main className={`battle-screen battle-screen--${phase.toLowerCase().replaceAll("_", "-")}`}>
       <div
         className="arena-stage"
         onPointerDown={(event) => { if (!canAct || event.button !== 0) return; dragRef.current = { y: event.clientY, angle: angles[turn] }; event.currentTarget.setPointerCapture(event.pointerId); }}
@@ -295,8 +290,7 @@ export function GameExperience() {
         onPointerUp={() => { dragRef.current = null; }}
         onPointerCancel={() => { dragRef.current = null; }}
       >
-        <GameArena3D activeShot={activeShot} impact={impact} catHero={catHero} dogHero={dogHero} catReaction={reactions.cat} dogReaction={reactions.dog} turn={turn} angle={angles[turn]} wind={wind} phase={phase} reducedMotion={reducedMotion} lowPowerDevice={lowPowerDevice} onShotComplete={finishShot} />
-        {impact && <div className={`impact-callout impact-callout--${impact.kind}`}>{impact.kind === "target" ? `-${impact.damage}` : impact.kind === "wall" ? "CLONK!" : "MISS!"}</div>}
+        <GameArena2D activeShot={activeShot} impact={impact} catHero={catHero} dogHero={dogHero} catReaction={reactions.cat} dogReaction={reactions.dog} turn={turn} angle={angles[turn]} power={power} wind={wind} phase={phase} reducedMotion={reducedMotion} lowPowerDevice={lowPowerDevice} onShotComplete={finishShot} />
       </div>
       <BattleHUD catName={selectedCat.name} dogName={selectedDog.name} health={health} turn={turn} phase={phase} angle={angles[turn]} power={power} wind={wind} status={status} canAct={canAct} soundEnabled={soundEnabled} lowPowerDevice={lowPowerDevice} onAngle={setCurrentAngle} onChargeStart={startCharge} onChargeEnd={releaseCharge} onLobby={returnToLobby} onFullscreen={() => void fullscreen()} onSound={toggleSound} />
       {winner && <div className="result-overlay" role="dialog" aria-modal="true" aria-labelledby="winner-title"><div><small>Backyard champion</small><h1 id="winner-title">{winner === "cat" ? selectedCat.name : selectedDog.name} wins!</h1><p>{winner === "cat" ? "Fishbone crew" : "Bone squad"} owns the yard—for now.</p><span><button type="button" onClick={rematch}>Rematch</button><button type="button" onClick={returnToLobby}>Fighter select</button></span></div></div>}

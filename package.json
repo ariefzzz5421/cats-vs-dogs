@@ -1,5 +1,5 @@
 {
-  "name": "cats-vs-dogs-3d",
+  "name": "cats-vs-dogs-backyard-rumble",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -13,13 +13,10 @@
     "lint": "eslint . --ignore-pattern .next"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.8",
-    "@react-three/fiber": "^9.7.0",
     "next": "^16.3.0",
     "peerjs": "^1.5.5",
     "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "three": "^0.185.1"
+    "react-dom": "19.2.6"
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",

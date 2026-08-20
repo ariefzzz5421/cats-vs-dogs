@@ -32,10 +32,12 @@ test("wind changes horizontal flight in the expected direction", () => {
   assert.ok(right.impact.position.x > calm.impact.position.x);
 });
 
-test("low power falls short while high power travels farther", () => {
-  const low = simulateShot(catShot({ angle: 62, power: 10 }));
+test("minimum, 50%, and maximum power produce progressively longer travel", () => {
+  const low = simulateShot(catShot({ angle: 62, power: 8 }));
+  const middle = simulateShot(catShot({ angle: 62, power: 50 }));
   const high = simulateShot(catShot({ angle: 62, power: 100 }));
-  assert.ok(low.impact.position.x < high.impact.position.x);
+  assert.ok(low.impact.position.x < middle.impact.position.x);
+  assert.ok(middle.impact.position.x < high.impact.position.x);
   assert.notEqual(low.impact.kind, "target");
 });
 
@@ -49,13 +51,22 @@ test("a high arc can clear the wall and return to the ground", () => {
   assert.equal(result.impact.kind, "ground");
 });
 
-test("20, 45, and 70 degree player angles produce distinct real arcs", () => {
+test("20, 45, and 78 degree player angles produce distinct real arcs", () => {
   const shallow = simulateShot(catShot({ angle: 20, power: 72 }));
   const balanced = simulateShot(catShot({ angle: 45, power: 72 }));
-  const high = simulateShot(catShot({ angle: 70, power: 72 }));
+  const high = simulateShot(catShot({ angle: 78, power: 72 }));
   assert.ok(shallow.maxHeight < balanced.maxHeight);
   assert.ok(balanced.maxHeight < high.maxHeight);
   assert.notDeepEqual(shallow.points, high.points);
+});
+
+test("a long shot can leave the arena boundary without teleporting", () => {
+  const result = simulateShot(catShot({ angle: 45, power: 100, wind: 0.85 }));
+  assert.equal(result.impact.kind, "boundary");
+  assert.ok(result.points.length > 20);
+  for (let index = 1; index < result.points.length; index += 1) {
+    assert.ok(result.points[index].time > result.points[index - 1].time);
+  }
 });
 
 test("bot searches the same simulation for a real target collision", () => {
@@ -63,6 +74,16 @@ test("bot searches the same simulation for a real target collision", () => {
   const result = simulateShot(catShot({ angle: aim.angle, power: aim.power, turnIndex: 4 }));
   assert.equal(result.impact.kind, "target");
   assert.ok(result.impact.damage >= 15 && result.impact.damage <= 30);
+});
+
+test("every bot difficulty returns legal angle and power inputs", () => {
+  for (const difficulty of ["easy", "medium", "hard", "expert"] as const) {
+    const aim = chooseBotShot("cat", -0.55, difficulty, 6);
+    assert.ok(aim.angle >= 20 && aim.angle <= 78, `${difficulty} angle`);
+    assert.ok(aim.power >= 8 && aim.power <= 100, `${difficulty} power`);
+    const result = simulateShot(catShot({ angle: aim.angle, power: aim.power, wind: -0.55, turnIndex: 6 }));
+    assert.ok(result.points.length > 1, `${difficulty} produces a simulated trajectory`);
+  }
 });
 
 test("dog-side trajectory is mirrored and can hit the cat", () => {
