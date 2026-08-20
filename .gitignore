@@ -37,4 +37,11 @@ yarn-error.log*
 /dist/
 /.wrangler/
 /outputs/
+/output/
+/.playwright-cli/
 /work/
+/.hallmark/
+
+# intermediate high-resolution chroma-key exports
+/public/characters/*-key.png
+/public/characters/*.png

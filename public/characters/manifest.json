@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "style": "Backyard Rumble chunky 2.5D arcade",
+  "cats": {
+    "fighters": ["/characters/blaze.webp", "/characters/luna.webp", "/characters/shadow.webp"],
+    "order": ["blaze", "luna", "shadow"],
+    "positions": ["12% center", "50% center", "88% center"]
+  },
+  "dogs": {
+    "fighters": ["/characters/major.webp", "/characters/bruno.webp", "/characters/snow.webp"],
+    "order": ["major", "bruno", "snow"],
+    "positions": ["12% center", "50% center", "88% center"]
+  },
+  "battleRendering": "procedural-r3f"
+}

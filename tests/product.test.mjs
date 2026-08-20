@@ -3,16 +3,27 @@ import { access, readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 test("game source includes the complete roster and match modes", async () => {
-  const source = await readFile(new URL("../app/components/GameExperience.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/components/game/GameLobby.tsx", import.meta.url), "utf8");
+  const roster = await readFile(new URL("../lib/game/roster.ts", import.meta.url), "utf8");
   for (const hero of ["Blaze", "Luna", "Shadow", "Major Bark", "Bruno", "Snow"]) {
-    assert.match(source, new RegExp(hero));
+    assert.match(roster, new RegExp(hero));
   }
-  assert.match(source, /Vs Bot/);
-  assert.match(source, /Same Device/);
-  assert.match(source, /Online Room/);
+  assert.match(source, /Play Solo/);
+  assert.match(source, /Local 2P/);
+  assert.match(source, /Online/);
   assert.match(source, /Fishbone Spinner/);
-  assert.match(source, /Golden Bone/);
-  assert.match(source, /HP: \$\{value\} dari 100/);
+  assert.match(source, /Rubber Bone/);
+});
+
+test("combat uses ballistic input sync instead of pre-decided hit messages", async () => {
+  const experience = await readFile(new URL("../app/components/GameExperience.tsx", import.meta.url), "utf8");
+  const ballistics = await readFile(new URL("../lib/game/ballistics.ts", import.meta.url), "utf8");
+  assert.match(experience, /simulateShot\(input\)/);
+  assert.match(experience, /shot-request/);
+  assert.doesNotMatch(experience, /makeShot\(side, power, target\)/);
+  assert.match(ballistics, /expandedWallCollision/);
+  assert.match(ballistics, /circleCollision/);
+  assert.match(ballistics, /input\.wind \* PHYSICS\.windAcceleration/);
 });
 
 test("ships compressed game art instead of multi-megabyte PNG assets", async () => {
@@ -24,4 +35,14 @@ test("ships compressed game art instead of multi-megabyte PNG assets", async () 
     assert.ok(details.size < 180_000, `${name} should remain below 180 KB`);
   }
   await assert.rejects(access(new URL("../public/og.png", import.meta.url)));
+});
+
+test("ships the generated six-hero v2 lineup and asset manifest", async () => {
+  for (const name of ["blaze.webp", "luna.webp", "shadow.webp", "major.webp", "bruno.webp", "snow.webp", "manifest.json"]) {
+    await access(new URL(`../public/characters/${name}`, import.meta.url));
+  }
+  for (const hero of ["blaze", "luna", "shadow", "major", "bruno", "snow"]) {
+    const asset = await stat(new URL(`../public/characters/${hero}.webp`, import.meta.url));
+    assert.ok(asset.size < 25_000, `${hero}.webp should stay below 25 KB`);
+  }
 });

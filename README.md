@@ -1,14 +1,20 @@
 # Cats vs Dogs — Backyard Rumble
 
-A playful 3D turn-based throwing game built with Next.js, React Three Fiber, and PeerJS.
+An original side-on browser artillery game built with Next.js, React Three Fiber, Three.js, and PeerJS.
 
 ## Game modes
 
-- Solo versus bot with Easy, Medium, Hard, and Expert difficulty
+- Solo versus a physics-aware bot with Easy, Medium, Hard, and Expert difficulty
 - Local two-player pass-and-play on one device
-- Online peer-to-peer rooms with shareable room codes
+- Online peer-to-peer rooms with host-authoritative match state
 
-Choose from three Cat heroes and three Dog heroes. Hold the power control and release inside the target zone to throw a fishbone or golden bone across the wall. Each fighter starts with 100 HP.
+## Controls
+
+- Drag vertically or use the angle slider to aim.
+- Hold `Space` or the throw button to charge power.
+- Release to throw. Wind changes each turn and physically changes the trajectory.
+
+The same fixed-timestep ballistics module drives every mode. Collision with the rival, center wall, ground, or arena boundary determines the result; hit and damage are never chosen before the projectile flies.
 
 ## Run locally
 
@@ -24,4 +30,7 @@ Open `http://localhost:3000`.
 ```bash
 npm run lint
 npm test
+npm run build
 ```
+
+Art rules for future characters and arenas live in `ART_DIRECTION.md`; UI rules live in `design.md`.
