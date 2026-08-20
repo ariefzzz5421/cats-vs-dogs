@@ -1,0 +1,603 @@
+/* Classic-modern 2D presentation layer.
+   This intentionally overrides the previous 3D/dashboard-like presentation
+   while keeping the existing gameplay state, physics, bot and networking. */
+
+:root {
+  --classic-ink: #152030;
+  --classic-sky-a: #7fd7ff;
+  --classic-sky-b: #d9f3ff;
+  --classic-grass: #4cae4f;
+  --classic-grass-dark: #2d7937;
+  --classic-brick: #c96845;
+  --classic-brick-dark: #8c3e30;
+  --classic-cream: #fff6dc;
+  --classic-panel: rgba(255, 250, 235, .96);
+  --classic-blue: #2f7ee8;
+  --classic-red: #ef6258;
+  --classic-shadow: 0 18px 50px rgba(34, 45, 64, .2);
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255, 219, 112, .35), transparent 28rem),
+    linear-gradient(180deg, #dff4ff 0%, #f8eed5 58%, #d8e7be 100%);
+  color: var(--classic-ink);
+}
+
+/* Lobby: simpler and closer to a classic browser-game landing screen. */
+.game-menu {
+  width: min(1080px, calc(100% - 28px));
+  margin: 24px auto 48px;
+  padding: clamp(18px, 3vw, 34px);
+  border: 4px solid rgba(31, 54, 77, .16);
+  border-radius: 32px;
+  background: rgba(255, 252, 239, .92);
+  box-shadow: var(--classic-shadow);
+  backdrop-filter: blur(12px);
+}
+
+.menu-masthead {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.menu-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-weight: 900;
+  letter-spacing: -.04em;
+}
+
+.menu-mark > span:first-child { color: var(--classic-blue); }
+.menu-mark > span:nth-of-type(2) { color: var(--classic-red); }
+.menu-mark b {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #ffb527;
+  color: #fff;
+  transform: rotate(-8deg);
+  box-shadow: 0 8px 18px rgba(172, 103, 0, .25);
+}
+.menu-mark small {
+  flex-basis: 100%;
+  font-size: .78rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #7b6d58;
+}
+.menu-masthead p { margin: 8px 0 0; color: #6d6a63; }
+
+.mode-select,
+.fighter-select,
+.match-setup {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.mode-select h1,
+.menu-section-title h2 {
+  text-align: center;
+  color: var(--classic-ink);
+}
+
+.mode-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mode-buttons button {
+  min-height: 76px;
+  border: 2px solid #d8d3c5;
+  border-radius: 18px;
+  background: #fffdf5;
+  color: var(--classic-ink);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.mode-buttons button:hover { transform: translateY(-2px); }
+.mode-buttons button[aria-pressed="true"] {
+  border-color: #4e96ed;
+  box-shadow: 0 8px 24px rgba(47, 126, 232, .18);
+  background: #f4f9ff;
+}
+
+.fighter-select { margin-top: 26px; }
+.fighter-select__teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 74px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 14px;
+}
+
+.fighter-team {
+  border: 2px solid #ddd4c5;
+  border-radius: 24px;
+  padding: 14px;
+  background: #fffdf7;
+  overflow: hidden;
+}
+.fighter-team--cat { box-shadow: inset 0 5px 0 rgba(47, 126, 232, .8); }
+.fighter-team--dog { box-shadow: inset 0 5px 0 rgba(239, 98, 88, .8); }
+
+.fighter-team__preview {
+  min-height: 220px;
+  position: relative;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #dff2ff 0%, #fff7d8 100%);
+}
+.fighter-team--dog .fighter-team__preview { background: linear-gradient(180deg, #ffe5d4 0%, #fff5cf 100%); }
+.fighter-team__preview img {
+  width: min(52%, 180px);
+  height: 210px;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 12px 9px rgba(36, 42, 48, .18));
+  transition: transform 180ms ease;
+}
+.fighter-team__preview:hover img { transform: translateY(-4px) rotate(-1deg); }
+.fighter-team--dog .fighter-team__preview:hover img { transform: translateY(-4px) rotate(1deg); }
+.fighter-team__preview > span {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 13px;
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(8px);
+  color: var(--classic-ink);
+}
+
+.fighter-vs { display: grid; place-items: center; }
+.fighter-vs span {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #ffb527;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 900;
+  transform: rotate(-8deg);
+  box-shadow: 0 10px 24px rgba(182, 103, 0, .28);
+}
+
+.fighter-tiles { gap: 8px; margin-top: 10px; }
+.fighter-tile {
+  border-radius: 14px;
+  border: 2px solid #e0d9ca;
+  background: #fff;
+  color: var(--classic-ink);
+}
+.fighter-tile[aria-pressed="true"] { border-color: #ffb527; box-shadow: 0 5px 14px rgba(177, 110, 7, .2); }
+.fighter-tile__art img { object-fit: contain; object-position: center bottom; }
+
+.match-setup {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 2px dashed #ded3bf;
+}
+.start-match {
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ff765d, #e64b45);
+  color: #fff;
+  box-shadow: 0 10px 0 #ad332f, 0 18px 30px rgba(174, 51, 47, .2);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.start-match:hover { transform: translateY(-2px); }
+.start-match:active { transform: translateY(5px); box-shadow: 0 5px 0 #ad332f; }
+
+/* Battle layout */
+.battle-screen {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: clamp(8px, 1.5vw, 18px);
+  gap: 10px;
+  background: linear-gradient(180deg, #ccecff, #f3eac8);
+}
+
+.arena-stage {
+  position: relative;
+  width: min(1180px, 100%);
+  aspect-ratio: 16 / 9;
+  max-height: calc(100dvh - 190px);
+  margin: auto;
+  border-radius: 26px;
+  overflow: hidden;
+  border: 4px solid #26394a;
+  background: #93d9ff;
+  box-shadow: 0 15px 0 rgba(31, 48, 59, .18), 0 28px 45px rgba(46, 56, 63, .18);
+  touch-action: none;
+}
+
+.classic-arena {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(180deg, var(--classic-sky-a) 0%, var(--classic-sky-b) 58%, #9cd47b 58%, #65b35c 100%);
+}
+
+.classic-sky,
+.classic-neighborhood,
+.classic-fence,
+.classic-grass,
+.classic-wall,
+.classic-fighter,
+.classic-projectile,
+.classic-impact,
+.classic-wind-leaves,
+.classic-aim { position: absolute; }
+
+.classic-sky { inset: 0 0 42% 0; overflow: hidden; }
+.classic-sun {
+  position: absolute;
+  width: 12%;
+  aspect-ratio: 1;
+  left: 12%;
+  top: 10%;
+  border-radius: 50%;
+  background: #ffe26c;
+  box-shadow: 0 0 0 16px rgba(255, 235, 130, .18), 0 0 45px rgba(255, 213, 63, .35);
+}
+.classic-cloud {
+  position: absolute;
+  width: 15%;
+  height: 8%;
+  border-radius: 999px;
+  background: rgba(255,255,255,.84);
+  box-shadow: 24px -10px 0 rgba(255,255,255,.84), 48px 2px 0 rgba(255,255,255,.84);
+  animation: classic-cloud-drift 18s linear infinite alternate;
+}
+.classic-cloud--one { left: 35%; top: 16%; }
+.classic-cloud--two { right: 15%; top: 30%; transform: scale(.7); animation-duration: 23s; }
+
+.classic-neighborhood { inset: 30% 0 24% 0; pointer-events: none; }
+.classic-house {
+  position: absolute;
+  bottom: 0;
+  width: 16%;
+  height: 50%;
+  border: 3px solid #6f5a46;
+  border-bottom: 0;
+  background: #f0b36a;
+}
+.classic-house::before {
+  content: "";
+  position: absolute;
+  left: -10%; right: -10%; top: -34%; height: 44%;
+  background: #b94f46;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.classic-house i {
+  position: absolute;
+  width: 23%; height: 35%;
+  left: 38%; bottom: 0;
+  background: #6e4e3b;
+  border-radius: 6px 6px 0 0;
+}
+.classic-house--left { left: 2%; transform: scale(.72); transform-origin: bottom left; opacity: .72; }
+.classic-house--right { right: 2%; transform: scale(.82); transform-origin: bottom right; opacity: .76; }
+.classic-tree {
+  position: absolute;
+  bottom: 0;
+  width: 7%; height: 54%;
+  background: #725137;
+  border-radius: 999px 999px 0 0;
+}
+.classic-tree::before,
+.classic-tree::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: #3c9b4d;
+}
+.classic-tree::before { width: 190%; aspect-ratio: 1; left: -70%; top: -25%; }
+.classic-tree::after { width: 145%; aspect-ratio: 1; right: -70%; top: -10%; }
+.classic-tree--one { left: 23%; }
+.classic-tree--two { right: 22%; transform: scale(.86); }
+
+.classic-fence {
+  left: 0; right: 0; bottom: 23%; height: 16%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 5.1%, rgba(83,57,32,.25) 5.1% 5.8%),
+    linear-gradient(#d59a55, #b8753e);
+  border-top: 4px solid #8e5b35;
+  border-bottom: 5px solid #8e5b35;
+  opacity: .92;
+}
+.classic-fence::before,
+.classic-fence::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  height: 12%;
+  background: #8e5b35;
+}
+.classic-fence::before { top: 26%; }
+.classic-fence::after { bottom: 24%; }
+
+.classic-grass { left: 0; right: 0; pointer-events: none; }
+.classic-grass--back {
+  bottom: 0;
+  height: 27%;
+  background: linear-gradient(180deg, #66bd59, #368642);
+}
+.classic-grass--front {
+  z-index: 12;
+  bottom: -2%;
+  height: 9%;
+  opacity: .7;
+  background:
+    repeating-linear-gradient(78deg, transparent 0 12px, rgba(25,92,42,.25) 13px 16px),
+    linear-gradient(180deg, transparent, #2f793c 70%);
+}
+
+.classic-wall {
+  z-index: 7;
+  left: 50%;
+  bottom: 8.5%;
+  width: 11.5%;
+  height: 31%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px;
+  padding: 4px;
+  border-radius: 8px 8px 3px 3px;
+  background: #824235;
+  box-shadow: 0 9px 0 rgba(77, 55, 38, .22), 0 15px 24px rgba(48, 41, 35, .2);
+}
+.classic-wall span {
+  border-radius: 4px;
+  background: linear-gradient(145deg, #db8061, var(--classic-brick));
+  border: 2px solid var(--classic-brick-dark);
+  box-shadow: inset 2px 2px 0 rgba(255,255,255,.16);
+}
+.classic-wall span:nth-child(2n) { transform: translateX(3px); }
+
+.classic-fighter {
+  z-index: 8;
+  bottom: 7.5%;
+  width: clamp(120px, 24%, 285px);
+  height: 47%;
+  display: grid;
+  place-items: end center;
+  transform-origin: center bottom;
+  pointer-events: none;
+}
+.classic-fighter--cat { left: 7%; }
+.classic-fighter--dog { right: 7%; }
+.classic-fighter img {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  user-select: none;
+  filter: drop-shadow(0 10px 7px rgba(39, 44, 40, .28));
+  animation: classic-idle 2.8s ease-in-out infinite;
+}
+.classic-fighter--dog img { animation-delay: -1.1s; }
+.classic-fighter__shadow {
+  position: absolute;
+  z-index: 0;
+  left: 17%; right: 17%; bottom: 1%; height: 8%;
+  border-radius: 50%;
+  background: rgba(41, 60, 37, .28);
+  filter: blur(3px);
+}
+.classic-fighter__ground-ring {
+  position: absolute;
+  z-index: 1;
+  bottom: -1%;
+  width: 64%;
+  height: 8%;
+  border-radius: 50%;
+  border: 3px solid transparent;
+}
+.classic-fighter.is-active .classic-fighter__ground-ring {
+  border-color: rgba(255, 216, 62, .95);
+  box-shadow: 0 0 18px rgba(255, 214, 56, .6);
+}
+
+.reaction-charge img { animation: classic-charge .55s ease-in-out infinite alternate; }
+.reaction-throw img { animation: classic-throw .48s cubic-bezier(.2,.9,.3,1); }
+.reaction-hit img { animation: classic-hit .42s ease-out; }
+.reaction-laugh img { animation: classic-laugh .5s ease-in-out 2; }
+.reaction-victory img { animation: classic-victory .72s ease-in-out infinite; }
+.reaction-defeat img { animation: classic-defeat .6s ease-out forwards; filter: grayscale(.2) drop-shadow(0 8px 7px rgba(39,44,40,.22)); }
+
+.classic-aim {
+  z-index: 9;
+  bottom: 31%;
+  width: 12%;
+  height: 4px;
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+.classic-aim--cat { left: 28%; }
+.classic-aim--dog { right: 28%; transform-origin: 100% 50%; }
+.classic-aim span {
+  position: absolute;
+  inset: 1px 0 auto 0;
+  border-top: 3px dashed rgba(255,255,255,.94);
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.35));
+}
+.classic-aim b {
+  position: absolute;
+  right: -4px;
+  top: -15px;
+  color: #fff;
+  font-size: 28px;
+  text-shadow: 0 2px 2px rgba(0,0,0,.35);
+}
+
+.classic-projectile {
+  z-index: 15;
+  width: clamp(28px, 4.5%, 56px);
+  color: #fff8d9;
+  filter: drop-shadow(0 3px 2px rgba(0,0,0,.3));
+  will-change: left, bottom, transform;
+  pointer-events: none;
+}
+.classic-projectile svg { display: block; width: 100%; overflow: visible; }
+.classic-projectile--cat { color: #eaf7ff; }
+.classic-projectile--dog { color: #fff0c2; }
+.classic-projectile__trail {
+  position: absolute;
+  right: 70%; top: 45%;
+  width: 42px; height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.75));
+  transform: translateY(-50%);
+}
+
+.classic-impact {
+  z-index: 20;
+  width: 1px; height: 1px;
+  pointer-events: none;
+}
+.classic-impact i {
+  position: absolute;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: #ffd43b;
+  animation: classic-impact-particle .55s ease-out forwards;
+}
+.classic-impact i:nth-child(2) { --impact-x: 34px; --impact-y: -26px; background: #ff7a42; }
+.classic-impact i:nth-child(3) { --impact-x: -31px; --impact-y: -22px; background: #fff; }
+.classic-impact i:nth-child(4) { --impact-x: 20px; --impact-y: 24px; background: #ffbc28; }
+.classic-impact b {
+  position: absolute;
+  left: 0; top: -36px;
+  transform: translateX(-50%) rotate(-5deg);
+  padding: 4px 9px;
+  border-radius: 9px;
+  background: #fff;
+  color: #252a30;
+  font-size: clamp(.7rem, 1.4vw, 1rem);
+  box-shadow: 0 4px 0 rgba(0,0,0,.12);
+  animation: classic-pop .42s cubic-bezier(.2,1.4,.3,1);
+}
+
+.classic-wind-leaves { z-index: 6; inset: 20% 0 auto 0; pointer-events: none; }
+.classic-wind-leaves i {
+  position: absolute;
+  width: 10px; height: 6px;
+  border-radius: 100% 0 100% 0;
+  background: #52994a;
+  animation: classic-leaf-right 2.8s linear infinite;
+}
+.wind-left .classic-wind-leaves i { animation-name: classic-leaf-left; }
+.classic-wind-leaves i:nth-child(1) { top: 10px; animation-delay: -.2s; }
+.classic-wind-leaves i:nth-child(2) { top: 42px; animation-delay: -1.1s; }
+.classic-wind-leaves i:nth-child(3) { top: 75px; animation-delay: -1.8s; }
+.classic-wind-leaves i:nth-child(4) { top: 105px; animation-delay: -2.3s; }
+
+/* HUD: compact console below the arena instead of covering the playfield. */
+.battle-hud {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  border-radius: 22px;
+  border: 3px solid rgba(37, 56, 71, .22);
+  background: rgba(255, 250, 235, .96);
+  box-shadow: 0 10px 28px rgba(41, 50, 58, .12);
+  color: var(--classic-ink);
+}
+.battle-health span,
+.power-control > div { background: rgba(40, 55, 66, .13); }
+.battle-health--cat span i { background: linear-gradient(90deg, #53a8ff, #2e79d7); }
+.battle-health--dog span i { background: linear-gradient(90deg, #ff846f, #e64e49); }
+.throw-control {
+  background: linear-gradient(180deg, #ffcf4c, #f09c22);
+  color: #34230d;
+  border-color: #ba7419;
+  box-shadow: 0 5px 0 #b87217;
+}
+.throw-control.is-charging { animation: classic-button-pulse .55s ease-in-out infinite alternate; }
+
+.result-overlay > div {
+  border: 4px solid #f4b832;
+  border-radius: 28px;
+  background: #fffaf0;
+  color: var(--classic-ink);
+}
+
+@keyframes classic-idle {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-5px) rotate(.6deg); }
+}
+@keyframes classic-charge {
+  from { transform: translateX(-3px) scale(1.01,.99) rotate(-1deg); }
+  to { transform: translateX(4px) scale(.98,1.02) rotate(1deg); }
+}
+@keyframes classic-throw {
+  0% { transform: translateX(0) rotate(0); }
+  40% { transform: translateX(-12px) rotate(-4deg) scale(.98,1.02); }
+  75% { transform: translateX(12px) rotate(5deg) scale(1.04,.96); }
+  100% { transform: translateX(0) rotate(0); }
+}
+@keyframes classic-hit {
+  0% { transform: translateX(0) rotate(0); }
+  25% { transform: translateX(-14px) rotate(-6deg); }
+  50% { transform: translateX(10px) rotate(5deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+@keyframes classic-laugh {
+  0%,100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-8px) rotate(3deg); }
+}
+@keyframes classic-victory {
+  0%,100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-18px) rotate(3deg); }
+}
+@keyframes classic-defeat { to { transform: translateY(10px) rotate(7deg) scale(.94); opacity: .75; } }
+@keyframes classic-cloud-drift { from { transform: translateX(-10px); } to { transform: translateX(20px); } }
+@keyframes classic-impact-particle { to { transform: translate(var(--impact-x, -25px), var(--impact-y, -28px)) scale(.2); opacity: 0; } }
+@keyframes classic-pop { from { transform: translateX(-50%) scale(.2) rotate(-5deg); } to { transform: translateX(-50%) scale(1) rotate(-5deg); } }
+@keyframes classic-leaf-right { from { left: -4%; transform: rotate(0); } to { left: 104%; transform: rotate(540deg); } }
+@keyframes classic-leaf-left { from { left: 104%; transform: rotate(0); } to { left: -4%; transform: rotate(-540deg); } }
+@keyframes classic-button-pulse { from { filter: brightness(1); transform: translateY(0); } to { filter: brightness(1.09); transform: translateY(-2px); } }
+
+@media (max-width: 820px) {
+  .game-menu { width: min(100% - 14px, 760px); margin-top: 7px; padding: 14px; border-radius: 22px; }
+  .mode-buttons { grid-template-columns: 1fr; }
+  .fighter-select__teams { grid-template-columns: 1fr; }
+  .fighter-vs { height: 44px; }
+  .fighter-vs span { width: 44px; }
+  .fighter-team__preview { min-height: 180px; }
+  .arena-stage { border-radius: 15px; border-width: 3px; max-height: none; }
+  .classic-fighter { width: 27%; height: 48%; }
+  .classic-fighter--cat { left: 4%; }
+  .classic-fighter--dog { right: 4%; }
+  .classic-wall { width: 12.5%; }
+}
+
+@media (orientation: portrait) and (max-width: 700px) {
+  .battle-screen { min-height: 100dvh; align-content: center; }
+  .arena-stage { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .classic-fighter img,
+  .classic-cloud,
+  .classic-wind-leaves i,
+  .throw-control.is-charging { animation: none !important; }
+}
