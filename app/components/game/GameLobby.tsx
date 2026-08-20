@@ -39,7 +39,7 @@ function FighterTile({
   return (
     <button className={`fighter-tile fighter-tile--${side}`} type="button" aria-pressed={selected} onClick={onSelect}>
       <span className="fighter-tile__art">
-        <img src={`/characters/${hero.id}.webp`} alt="" width="288" height="400" />
+        <img src={`/characters/battle/${hero.id}.webp`} alt="" width="432" height="600" decoding="async" />
       </span>
       <span><strong>{hero.name}</strong><small>{hero.trait}</small></span>
     </button>
@@ -75,7 +75,7 @@ export function GameLobby(props: Props) {
         <div className="fighter-select__teams">
           <div className="fighter-team fighter-team--cat">
             <div className="fighter-team__preview">
-              <img src={`/characters/${selectedCat.id}.webp`} alt={`${selectedCat.name}, ${selectedCat.role}`} width="288" height="400" />
+              <img src={`/characters/battle/${selectedCat.id}.webp`} alt={`${selectedCat.name}, ${selectedCat.role}`} width="432" height="600" decoding="async" />
               <span><small>Cat crew</small><strong>{selectedCat.name}</strong><em>{selectedCat.role} · Fishbone Spinner</em></span>
             </div>
             <div className="fighter-tiles">{CAT_HEROES.map((hero) => <FighterTile key={hero.id} side="cat" hero={hero} selected={hero.id === props.catHero} onSelect={() => props.onCatHero(hero.id)} />)}</div>
@@ -83,7 +83,7 @@ export function GameLobby(props: Props) {
           <div className="fighter-vs" aria-hidden="true"><span>VS</span></div>
           <div className="fighter-team fighter-team--dog">
             <div className="fighter-team__preview">
-              <img src={`/characters/${selectedDog.id}.webp`} alt={`${selectedDog.name}, ${selectedDog.role}`} width="288" height="400" />
+              <img src={`/characters/battle/${selectedDog.id}.webp`} alt={`${selectedDog.name}, ${selectedDog.role}`} width="432" height="600" decoding="async" />
               <span><small>Dog squad</small><strong>{selectedDog.name}</strong><em>{selectedDog.role} · Rubber Bone</em></span>
             </div>
             <div className="fighter-tiles">{DOG_HEROES.map((hero) => <FighterTile key={hero.id} side="dog" hero={hero} selected={hero.id === props.dogHero} onSelect={() => props.onDogHero(hero.id)} />)}</div>

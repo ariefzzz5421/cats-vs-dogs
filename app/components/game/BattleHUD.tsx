@@ -26,7 +26,7 @@ type Props = {
 };
 
 function HealthBar({ side, name, value }: { side: Side; name: string; value: number }) {
-  return <div className={`battle-health battle-health--${side}`}><div><strong>{name}</strong><b>{value}<small> HP</small></b></div><span aria-label={`${name} HP: ${value} dari 100`}><i style={{ transform: `scaleX(${value / 100})` }} /></span></div>;
+  return <div className={`battle-health battle-health--${side}`}><div><strong>{name}</strong><b>{value}<small> HP</small></b></div><span role="meter" aria-label={`${name} health`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={value}><i style={{ transform: `scaleX(${value / 100})` }} /></span></div>;
 }
 
 export function BattleHUD(props: Props) {
@@ -40,24 +40,23 @@ export function BattleHUD(props: Props) {
           <small>{props.turn} · Wind</small><b>{windDirection} {windToKmh(props.wind)}</b><span>km/h</span>
         </div>
         <HealthBar side="dog" name={props.dogName} value={props.health.dog} />
-      </div>
-
-      <div className="battle-tools">
-        <button type="button" onClick={props.onLobby} aria-label="Exit to lobby">×</button>
-        <button type="button" onClick={props.onSound} aria-label={props.soundEnabled ? "Turn sound off" : "Turn sound on"}>{props.soundEnabled ? "♪" : "♪̸"}</button>
-        <button type="button" onClick={props.onFullscreen} aria-label="Fullscreen">⛶</button>
-        {props.lowPowerDevice && <span>Lite</span>}
+        <div className="battle-tools">
+          <button type="button" onClick={props.onLobby} aria-label="Exit to lobby">×</button>
+          <button type="button" onClick={props.onSound} aria-label={props.soundEnabled ? "Turn sound off" : "Turn sound on"}>{props.soundEnabled ? "♪" : "♪̸"}</button>
+          <button type="button" onClick={props.onFullscreen} aria-label="Fullscreen">⛶</button>
+          {props.lowPowerDevice && <span>Lite</span>}
+        </div>
       </div>
 
       <div className="battle-hud__bottom">
-        <div className="turn-copy"><small>{props.turn === "cat" ? "Cat turn" : "Dog turn"}</small><strong>{props.status}</strong></div>
+        <div className="turn-copy" aria-live="polite"><small>{props.turn === "cat" ? "Cat turn" : "Dog turn"}</small><strong>{props.status}</strong></div>
         <label className="angle-control">
           <span>Angle <b>{Math.round(props.angle)}°</b></span>
-          <input type="range" min={PHYSICS.minAngle} max={PHYSICS.maxAngle} step="1" value={props.angle} onChange={(event) => props.onAngle(Number(event.target.value))} disabled={!props.canAct || charging} />
+          <input aria-label={`Angle ${Math.round(props.angle)} degrees`} type="range" min={PHYSICS.minAngle} max={PHYSICS.maxAngle} step="1" value={props.angle} onChange={(event) => props.onAngle(Number(event.target.value))} disabled={!props.canAct || charging} />
         </label>
         <div className="power-control">
           <span>Power <b>{Math.round(props.power)}%</b></span>
-          <div><i style={{ transform: `scaleX(${props.power / 100})` }} /></div>
+          <div role="meter" aria-label="Throw power" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(props.power)}><i style={{ transform: `scaleX(${props.power / 100})` }} /></div>
         </div>
         <button
           className={`throw-control${charging ? " is-charging" : ""}`}

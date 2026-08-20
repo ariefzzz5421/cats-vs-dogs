@@ -26,6 +26,22 @@ test("combat uses ballistic input sync instead of pre-decided hit messages", asy
   assert.match(ballistics, /input\.wind \* PHYSICS\.windAcceleration/);
 });
 
+test("battle uses the lightweight 2D renderer and exact trajectory playback", async () => {
+  const arenaUrl = new URL("../app/components/GameArena2D.tsx", import.meta.url);
+  const arena = await readFile(arenaUrl, "utf8");
+  const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+
+  await access(arenaUrl);
+  await assert.rejects(access(new URL("../app/components/GameArena3D.tsx", import.meta.url)));
+  assert.match(arena, /trajectoryPointAt/);
+  assert.match(arena, /requestAnimationFrame/);
+  assert.match(arena, /ARENA\.wall\.minX/);
+  assert.doesNotMatch(arena, /useFrame|<Canvas|@react-three/);
+  assert.equal(packageJson.dependencies.three, undefined);
+  assert.equal(packageJson.dependencies["@react-three/fiber"], undefined);
+  assert.equal(packageJson.dependencies["@react-three/drei"], undefined);
+});
+
 test("ships compressed game art instead of multi-megabyte PNG assets", async () => {
   const assets = ["og.webp", "cat-roster.webp", "dog-roster.webp", "weapon-kit.webp"];
   for (const name of assets) {
@@ -45,4 +61,25 @@ test("ships the generated six-hero v2 lineup and asset manifest", async () => {
     const asset = await stat(new URL(`../public/characters/${hero}.webp`, import.meta.url));
     assert.ok(asset.size < 25_000, `${hero}.webp should stay below 25 KB`);
   }
+});
+
+test("ships transparent, optimized battle cutouts for every hero", async () => {
+  for (const hero of ["blaze", "luna", "shadow", "major", "bruno", "snow"]) {
+    const asset = await stat(new URL(`../public/characters/battle/${hero}.webp`, import.meta.url));
+    assert.ok(asset.size < 55_000, `${hero} battle cutout should stay below 55 KB`);
+  }
+});
+
+test("keeps reduced-motion, low-power, and mobile orientation safeguards", async () => {
+  const experience = await readFile(new URL("../app/components/GameExperience.tsx", import.meta.url), "utf8");
+  const arena = await readFile(new URL("../app/components/GameArena2D.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/classic-game.css", import.meta.url), "utf8");
+
+  assert.match(experience, /prefers-reduced-motion: reduce/);
+  assert.match(experience, /lowPowerDevice/);
+  assert.match(arena, /if \(reducedMotion\)/);
+  assert.match(arena, /lowPowerDevice \? 3 : 6/);
+  assert.match(styles, /orientation: landscape/);
+  assert.match(styles, /orientation: portrait/);
+  assert.match(styles, /prefers-reduced-motion: reduce/);
 });

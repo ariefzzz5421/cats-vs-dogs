@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import "./classic-game.css";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -23,16 +24,16 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: "Cats vs Dogs — Backyard Rumble",
-    description: "A playful 3D turn-based throwing game for solo, local, and online multiplayer.",
+    description: "A modern 2D turn-based backyard throwing game inspired by classic browser artillery games.",
     openGraph: {
       title: "Cats vs Dogs — Backyard Rumble",
-      description: "Choose a hero. Charge the throw. Rule the backyard.",
-      images: [{ url: `${origin}/og.webp`, width: 1400, height: 933, alt: "Cats and dogs face off across a brick wall" }],
+      description: "Pick a fighter. Read the wind. Charge the throw. Rule the backyard.",
+      images: [{ url: `${origin}/og.webp`, width: 1400, height: 933, alt: "Cats and dogs face off across a backyard wall" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "Cats vs Dogs — Backyard Rumble",
-      description: "Choose a hero. Charge the throw. Rule the backyard.",
+      description: "Pick a fighter. Read the wind. Charge the throw. Rule the backyard.",
       images: [`${origin}/og.webp`],
     },
   };
