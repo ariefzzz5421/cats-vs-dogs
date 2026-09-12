@@ -1,76 +1,51 @@
-import { PHYSICS, projectileFor } from "./constants";
-import { evaluateShot } from "./ballistics";
-import type { Difficulty, ShotInput, Side } from "./types";
-
-type BotProfile = {
-  angleError: number;
-  powerError: number;
-  windUnderstanding: number;
-  reactionMs: number;
+import { ARENA, clamp } from "./constants";
+import { randomUnit } from "./ballistics";
+import type { BallisticResult, BotMemory, Difficulty } from "./types";
+export const BOT_PROFILES = {
+  easy: { error: 15, wind: 0.2, learning: 0.25, delay: 1.05 },
+  normal: { error: 8, wind: 0.6, learning: 0.5, delay: 0.8 },
+  hard: { error: 3.5, wind: 0.9, learning: 0.75, delay: 0.65 },
 };
-
-export const BOT_PROFILES: Record<Difficulty, BotProfile> = {
-  easy: { angleError: 7, powerError: 12, windUnderstanding: 0.3, reactionMs: 1150 },
-  medium: { angleError: 4, powerError: 7, windUnderstanding: 0.68, reactionMs: 900 },
-  hard: { angleError: 2.2, powerError: 4, windUnderstanding: 0.88, reactionMs: 680 },
-  expert: { angleError: 1.1, powerError: 2.2, windUnderstanding: 0.97, reactionMs: 520 },
-};
-
-function seededUnit(seed: number) {
-  let value = seed >>> 0;
-  value ^= value << 13;
-  value ^= value >>> 17;
-  value ^= value << 5;
-  return (value >>> 0) / 0xffffffff;
-}
-
-export function chooseBotShot(side: Side, wind: number, difficulty: Difficulty, turnIndex: number) {
+export const freshBot = (): BotMemory => ({
+  power: 75,
+  lastWind: 0,
+  correction: 0,
+});
+/** Estimate, don't solve: remembered strength + approximate wind compensation + error. */
+export function chooseBotShot(
+  memory: BotMemory,
+  wind: number,
+  difficulty: Difficulty,
+  seed: number,
+) {
   const profile = BOT_PROFILES[difficulty];
-  const perceivedWind = wind * profile.windUnderstanding;
-  let best = { angle: 48, power: 58, score: Number.POSITIVE_INFINITY };
-
-  const probe = (angle: number, power: number) => {
-      const result = evaluateShot({
-        shotId: "bot-probe",
-        side,
-        angle,
-        power,
-        wind: perceivedWind,
-        projectileType: projectileFor(side),
-        turnIndex,
-      });
-      const targetBonus = result.impact.kind === "target" ? -4 : 0;
-      const wallPenalty = result.impact.kind === "wall" ? 0.65 : 0;
-      const score = result.closestTargetDistance + wallPenalty + targetBonus;
-      if (score < best.score) best = { angle, power, score };
-  };
-
-  // A coarse pass followed by a small local refinement is fast enough for
-  // low-power phones while still using the exact same fixed-step simulation.
-  for (let angle = PHYSICS.minAngle; angle <= PHYSICS.maxAngle; angle += 6) {
-    for (let power = 14; power <= PHYSICS.maxPower; power += 6) {
-      probe(angle, power);
-    }
-  }
-  const coarseBest = { ...best };
-  for (let angle = coarseBest.angle - 5; angle <= coarseBest.angle + 5; angle += 1) {
-    for (let power = coarseBest.power - 5; power <= coarseBest.power + 5; power += 1) {
-      if (angle >= PHYSICS.minAngle && angle <= PHYSICS.maxAngle && power >= PHYSICS.minPower && power <= PHYSICS.maxPower) {
-        probe(angle, power);
-      }
-    }
-  }
-
-  const angleNoise = (seededUnit(turnIndex * 37 + 11) * 2 - 1) * profile.angleError;
-  const powerNoise = (seededUnit(turnIndex * 53 + 29) * 2 - 1) * profile.powerError;
   return {
-    angle: Math.max(PHYSICS.minAngle, Math.min(PHYSICS.maxAngle, Math.round((best.angle + angleNoise) * 10) / 10)),
-    power: Math.max(PHYSICS.minPower, Math.min(PHYSICS.maxPower, Math.round(best.power + powerNoise))),
-    reactionMs: profile.reactionMs,
+    angle: 55,
+    power: clamp(
+      memory.power +
+        wind * profile.wind * 1.5 +
+        (randomUnit(seed) * 2 - 1) * profile.error,
+      12,
+      100,
+    ),
   };
 }
-
-export function makeBotShot(side: Side, wind: number, difficulty: Difficulty, turnIndex: number, shotId: string): ShotInput {
-  const aim = chooseBotShot(side, wind, difficulty, turnIndex);
-  return { shotId, side, angle: aim.angle, power: aim.power, wind, projectileType: projectileFor(side), turnIndex };
+export function learnFromShot(
+  memory: BotMemory,
+  result: BallisticResult,
+  difficulty: Difficulty,
+): BotMemory {
+  const impact = result.impact;
+  if (impact.kind === "target")
+    return { ...memory, correction: 0, lastWind: result.input.wind };
+  const targetX = ARENA.fighters[result.input.side === "cat" ? "dog" : "cat"].x;
+  const direction = result.input.side === "cat" ? 1 : -1;
+  const correction =
+    clamp((targetX - impact.point.x) * direction * 0.055, -14, 14) *
+    BOT_PROFILES[difficulty].learning;
+  return {
+    power: clamp(memory.power + correction, 48, 93),
+    lastWind: result.input.wind,
+    correction,
+  };
 }
