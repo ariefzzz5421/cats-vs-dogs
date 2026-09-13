@@ -1,152 +1,129 @@
-import { ARENA, PHYSICS, PROJECTILES, opponentOf, originFor, targetFor } from "./constants";
-import type { BallisticResult, ImpactKind, ImpactResult, ProjectileProperties, ShotInput, TrajectoryPoint, Vec2 } from "./types";
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y);
-
+import { ARENA, PHYSICS, clamp, other } from "./constants";
+import type { BallisticResult, ShotInput, TrajectoryPoint } from "./types";
 export function powerToVelocity(power: number) {
-  const normalized = clamp(power, PHYSICS.minPower, PHYSICS.maxPower) / PHYSICS.maxPower;
-  return PHYSICS.minVelocity + normalized * PHYSICS.velocityRange;
+  return 200 + clamp(power, PHYSICS.minPower, PHYSICS.maxPower) * 5;
 }
-
-export function calculateDamage(speed: number, distanceFromCenter: number, projectile: ProjectileProperties) {
-  const centerBonus = clamp(1 - distanceFromCenter / 0.72, 0, 1) * 5;
-  return clamp(Math.round(projectile.baseDamage + speed * 0.58 + centerBonus), 15, 30);
+/** Circle against the same vertical capsule that the artist draws around. */
+export function characterCollision(
+  x: number,
+  y: number,
+  side: "cat" | "dog",
+  radius: number = PHYSICS.radius,
+) {
+  const body = ARENA.fighters[side];
+  return (
+    Math.hypot(x - body.x, y - clamp(y, body.top, body.bottom)) <=
+    body.radius + radius
+  );
 }
-
-function circleCollision(position: Vec2, center: Vec2, radius: number) {
-  return distance(position, center) <= radius;
+export function wallCollision(
+  x: number,
+  y: number,
+  radius: number = PHYSICS.radius,
+) {
+  const wall = ARENA.wall;
+  return (
+    Math.hypot(
+      x - clamp(x, wall.x, wall.x + wall.width),
+      y - clamp(y, wall.y, wall.y + wall.height),
+    ) <= radius
+  );
 }
-
-function expandedWallCollision(position: Vec2, radius: number) {
-  return position.x >= ARENA.wall.minX - radius
-    && position.x <= ARENA.wall.maxX + radius
-    && position.y >= ARENA.wall.minY
-    && position.y <= ARENA.wall.maxY + radius;
+export function calculateDamage(speed: number, item?: ShotInput["item"]) {
+  const normal = clamp(Math.round(15 + speed / 75), 15, 25);
+  return Math.round(
+    normal * (item === "heavy" ? 1.3 : item === "double" ? 0.6 : 1),
+  );
 }
-
-function makeImpact(kind: ImpactKind, point: TrajectoryPoint, damage = 0, target?: "cat" | "dog"): ImpactResult {
-  const speed = Math.hypot(point.vx, point.vy);
-  return {
-    kind,
-    position: { x: point.x, y: Math.max(ARENA.groundY, point.y) },
-    velocity: { x: point.vx, y: point.vy },
-    speed,
-    time: point.time,
-    target,
-    damage,
-  };
-}
-
-function integrateShot(input: ShotInput, recordTrajectory: boolean): BallisticResult {
-  const projectile = PROJECTILES[input.projectileType];
-  const origin = originFor(input.side);
-  const targetSide = opponentOf(input.side);
-  const target = targetFor(input.side);
-  const direction = input.side === "cat" ? 1 : -1;
-  const radians = (clamp(input.angle, PHYSICS.minAngle, PHYSICS.maxAngle) * Math.PI) / 180;
-  const velocity = powerToVelocity(input.power);
-
-  let x = origin.x;
-  let y = origin.y;
-  let vx = Math.cos(radians) * velocity * direction;
-  let vy = Math.sin(radians) * velocity;
-  let time = 0;
-  let closestTargetDistance = Number.POSITIVE_INFINITY;
-  let maxHeight = y;
-  const initialPoint: TrajectoryPoint = { x, y, vx, vy, time };
-  let lastPoint = initialPoint;
-  const points: TrajectoryPoint[] = [initialPoint];
-  let impact: ImpactResult | null = null;
-
-  while (time < PHYSICS.maxFlightTime) {
-    const dragX = projectile.drag * vx * Math.abs(vx);
-    const dragY = projectile.drag * vy * Math.abs(vy);
-    vx += ((input.wind * PHYSICS.windAcceleration) / projectile.mass - dragX) * PHYSICS.fixedDt;
-    vy += (PHYSICS.gravity - dragY) * PHYSICS.fixedDt;
-    x += vx * PHYSICS.fixedDt;
-    y += vy * PHYSICS.fixedDt;
-    time += PHYSICS.fixedDt;
-
-    const point = { x, y, vx, vy, time };
-    lastPoint = point;
-    if (recordTrajectory) points.push(point);
-    maxHeight = Math.max(maxHeight, y);
-    const targetDistance = distance(point, target.center);
-    closestTargetDistance = Math.min(closestTargetDistance, targetDistance);
-
-    if (time > 0.12 && circleCollision(point, target.center, target.radius + projectile.radius)) {
-      impact = makeImpact("target", point, calculateDamage(Math.hypot(vx, vy), targetDistance, projectile), targetSide);
-      break;
-    }
-    if (expandedWallCollision(point, projectile.radius)) {
-      impact = makeImpact("wall", point);
-      break;
-    }
-    if (y - projectile.radius <= ARENA.groundY && time > PHYSICS.fixedDt * 2) {
-      impact = makeImpact("ground", point);
-      break;
-    }
-    if (x < ARENA.minX || x > ARENA.maxX || y > ARENA.maxY) {
-      impact = makeImpact("boundary", point);
-      break;
-    }
-  }
-
-  if (!recordTrajectory && impact) points.push({
-    x: impact.position.x,
-    y: impact.position.y,
-    vx: impact.velocity.x,
-    vy: impact.velocity.y,
-    time: impact.time,
-  });
-  const finalPoint = impact ? (points.at(-1) ?? lastPoint) : lastPoint;
-  return {
-    input,
-    points,
-    impact: impact ?? makeImpact("boundary", finalPoint),
-    closestTargetDistance,
-    maxHeight,
-  };
-}
-
+/** Pure fixed-step simulation. Collision selects the outcome; no hidden target power. */
 export function simulateShot(input: ShotInput): BallisticResult {
-  return integrateShot(input, true);
+  if (![input.angle, input.power, input.wind].every(Number.isFinite))
+    throw new RangeError("Shot inputs must be finite");
+  const angle = (clamp(input.angle, 20, 78) * Math.PI) / 180;
+  const velocity =
+    powerToVelocity(input.power) * (input.item === "heavy" ? 0.9 : 1);
+  const wind =
+    clamp(input.wind, -10, 10) *
+    PHYSICS.windAcceleration *
+    (input.item === "shield" ? 0.2 : 1);
+  let point: TrajectoryPoint = {
+    ...ARENA.origins[input.side],
+    vx: Math.cos(angle) * velocity * (input.side === "cat" ? 1 : -1),
+    vy: -Math.sin(angle) * velocity,
+    time: 0,
+  };
+  const points = [point];
+  const target = other(input.side);
+  for (let tick = 1; tick <= 1200; tick++) {
+    const vx = point.vx + wind * PHYSICS.dt,
+      vy = point.vy + PHYSICS.gravity * PHYSICS.dt;
+    point = {
+      x: point.x + vx * PHYSICS.dt,
+      y: point.y + vy * PHYSICS.dt,
+      vx,
+      vy,
+      time: tick * PHYSICS.dt,
+    };
+    points.push(point);
+    // Maximum legal step is smaller than the smallest collision diameter (18 px).
+    const kind = characterCollision(point.x, point.y, target)
+      ? "target"
+      : wallCollision(point.x, point.y)
+        ? "wall"
+        : point.y + PHYSICS.radius >= ARENA.ground
+          ? "ground"
+          : point.x < -PHYSICS.radius ||
+              point.x > ARENA.width + PHYSICS.radius ||
+              point.y < -100
+            ? "boundary"
+            : null;
+    if (kind)
+      return {
+        input,
+        points,
+        impact: {
+          kind,
+          point,
+          target: kind === "target" ? target : undefined,
+          damage:
+            kind === "target"
+              ? calculateDamage(Math.hypot(vx, vy), input.item)
+              : 0,
+        },
+      };
+  }
+  return { input, points, impact: { kind: "boundary", point, damage: 0 } };
 }
-
-/** Fast deterministic evaluation for AI search. It runs identical physics and
- * collision rules but stores only the origin and final impact point. */
-export function evaluateShot(input: ShotInput): BallisticResult {
-  return integrateShot(input, false);
-}
-
-export function trajectoryPointAt(result: BallisticResult, elapsed: number) {
-  const points = result.points;
-  if (elapsed <= 0) return points[0];
-  if (elapsed >= result.impact.time) return points.at(-1) ?? points[0];
-  const index = clamp(Math.floor(elapsed / PHYSICS.fixedDt), 0, points.length - 2);
-  const current = points[index];
-  const next = points[index + 1];
-  const local = clamp((elapsed - current.time) / Math.max(PHYSICS.fixedDt, next.time - current.time), 0, 1);
+export function trajectoryPointAt(
+  result: BallisticResult,
+  elapsed: number,
+): TrajectoryPoint {
+  const index = clamp(
+    Math.floor(elapsed / PHYSICS.dt),
+    0,
+    result.points.length - 1,
+  );
+  const a = result.points[index],
+    b = result.points[index + 1] ?? a;
+  const mix = clamp((elapsed - a.time) / PHYSICS.dt, 0, 1);
   return {
-    x: current.x + (next.x - current.x) * local,
-    y: current.y + (next.y - current.y) * local,
-    vx: current.vx + (next.vx - current.vx) * local,
-    vy: current.vy + (next.vy - current.vy) * local,
+    x: a.x + (b.x - a.x) * mix,
+    y: a.y + (b.y - a.y) * mix,
+    vx: a.vx + (b.vx - a.vx) * mix,
+    vy: a.vy + (b.vy - a.vy) * mix,
     time: elapsed,
   };
 }
-
-export function makeDeterministicWind(seed: number, turnIndex: number) {
-  let value = (seed ^ Math.imul(turnIndex + 1, 0x9e3779b1)) >>> 0;
-  value ^= value << 13;
-  value ^= value >>> 17;
-  value ^= value << 5;
-  const normalized = (value >>> 0) / 0xffffffff;
-  const wind = (normalized * 2 - 1) * 0.92;
-  return Math.abs(wind) < 0.09 ? 0 : Math.round(wind * 100) / 100;
+export function randomUnit(seed: number) {
+  let n = (seed + 0x6d2b79f5) | 0;
+  n = Math.imul(n ^ (n >>> 15), n | 1);
+  n ^= n + Math.imul(n ^ (n >>> 7), n | 61);
+  return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
 }
-
-export function windToKmh(wind: number) {
-  return Math.round(Math.abs(wind) * 18);
+/** Triangular distribution makes extreme wind rarer than moderate wind. */
+export function makeDeterministicWind(seed: number, turn: number) {
+  const n = seed + turn * 1709;
+  const wind =
+    Math.round((randomUnit(n) + randomUnit(n + 9137) - 1) * 100) / 10;
+  return Math.abs(wind) < 0.7 ? 0 : wind;
 }

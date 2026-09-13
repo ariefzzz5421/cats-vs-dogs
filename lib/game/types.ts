@@ -1,89 +1,65 @@
 export type Side = "cat" | "dog";
-export type CatHeroId = "blaze" | "luna" | "shadow";
-export type DogHeroId = "major" | "bruno" | "snow";
-export type GameMode = "bot" | "local" | "online";
-export type Difficulty = "easy" | "medium" | "hard" | "expert";
-export type GamePhase =
-  | "LOBBY"
-  | "MATCH_INTRO"
-  | "TURN_START"
-  | "AIMING"
-  | "CHARGING"
-  | "PROJECTILE_FLIGHT"
-  | "IMPACT"
-  | "TURN_END"
-  | "GAME_OVER";
-
-export type ProjectileType = "fishbone" | "rubber-bone";
-export type CharacterReaction = "idle" | "aim" | "charge" | "throw" | "hit" | "laugh" | "victory" | "defeat";
-
+export type GameMode = "solo" | "local";
+export type Difficulty = "easy" | "normal" | "hard";
+export type Phase =
+  | "menu"
+  | "starting"
+  | "aiming"
+  | "charging"
+  | "throwing"
+  | "flying"
+  | "impact"
+  | "switching"
+  | "gameOver";
+export type Item = "double" | "heavy" | "shield" | "heal";
 export type Vec2 = { x: number; y: number };
-
-export type ProjectileProperties = {
-  radius: number;
-  mass: number;
-  drag: number;
-  baseDamage: number;
-};
-
 export type ShotInput = {
-  shotId: string;
   side: Side;
   angle: number;
   power: number;
   wind: number;
-  projectileType: ProjectileType;
-  turnIndex: number;
+  item?: Item;
 };
-
-export type TrajectoryPoint = Vec2 & {
-  time: number;
-  vx: number;
-  vy: number;
-};
-
+export type TrajectoryPoint = Vec2 & { vx: number; vy: number; time: number };
 export type ImpactKind = "target" | "wall" | "ground" | "boundary";
-
-export type ImpactResult = {
+export type Impact = {
   kind: ImpactKind;
-  position: Vec2;
-  velocity: Vec2;
-  speed: number;
-  time: number;
-  target?: Side;
+  point: TrajectoryPoint;
   damage: number;
+  target?: Side;
 };
-
 export type BallisticResult = {
   input: ShotInput;
   points: TrajectoryPoint[];
-  impact: ImpactResult;
-  closestTargetDistance: number;
-  maxHeight: number;
+  impact: Impact;
 };
-
-export type ActiveShot = {
-  input: ShotInput;
+export type BotMemory = { power: number; lastWind: number; correction: number };
+export type Flight = {
   result: BallisticResult;
+  delay: number;
+  resolved: boolean;
 };
-
-export type HealthState = { cat: number; dog: number };
-
-export type MatchSnapshot = {
-  health: HealthState;
+export type Effect = { impact: Impact; age: number };
+export type MatchState = {
+  phase: Phase;
+  mode: GameMode;
+  difficulty: Difficulty;
   turn: Side;
-  wind: number;
   turnIndex: number;
+  health: Record<Side, number>;
+  stock: Record<Side, Record<Item, number>>;
+  angle: number;
+  power: number;
+  wind: number;
+  seed: number;
+  selected: Item | null;
+  elapsed: number;
+  clock: number;
+  flights: Flight[];
+  effects: Effect[];
   winner: Side | null;
-  catHero: CatHeroId;
-  dogHero: DogHeroId;
-};
-
-export type HeroDefinition<T extends string = string> = {
-  id: T;
-  name: string;
-  role: string;
-  trait: string;
-  artPosition: string;
-  projectileType: ProjectileType;
+  paused: boolean;
+  bot: BotMemory;
+  botPower: number;
+  message: string;
 };
