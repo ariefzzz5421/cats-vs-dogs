@@ -1,5 +1,14 @@
 # Rebuild verification — 12 September 2026
 
+## Icon and menu refresh — 13 September 2026
+
+- Added original inline SVG fishbone/bone weapons, four illustrated skills, angle/power, mode, sound, pause and fullscreen icons. No new dependencies or image requests for these icons.
+- Refreshed team wordmark, play ticket and mode selector. Reflowed desktop skills into a wider compact row; kept controls outside the arena.
+- Production Chromium: real pointer charge activates `weapon-charge`, release resolves a shot and changes to Dog's bone icon; Heavy skill selection works on Dog's turn. Reduced-motion reports animation `none`. Native touch cancellation returns to aiming. No console errors or warnings.
+- Menu checked at 320, 375, 414, 768, 1024, 1280, 1440 and 844-landscape widths; battle at 320, 375, 390, 414, 768, 1280 and 844-landscape. No horizontal overflow. Landscape throw control fits after reducing stage height; skill description stays visible.
+- Existing 16 mechanics tests, lint and production build pass. Engine, bot, damage and item rules unchanged. SVG/CSS feedback uses transforms/opacity and no React frame updates. Physical device/Safari checks remain outstanding.
+- Screenshots: `docs/qa/icons-menu.png`, `docs/qa/icons-battle.png`, `docs/qa/icons-mobile.png`.
+
 Final continuation check on 13 September: refreshed the production menu at 1280×800 with no horizontal overflow and captured `public/og.png` from the actual game. This replaces the obsolete social preview artwork.
 
 ## Audit and reference

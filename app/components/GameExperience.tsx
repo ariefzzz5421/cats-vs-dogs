@@ -28,6 +28,7 @@ import {
   stopChargeSound,
 } from "@/lib/game/audio";
 import type { Difficulty, GameMode, MatchState, Item } from "@/lib/game/types";
+import { GameIcon } from "./GameIcon";
 
 const copyState = (s: MatchState): MatchState => ({
   ...s,
@@ -344,8 +345,14 @@ export function GameExperience() {
           CATS <b>vs</b> DOGS
         </span>
         <div>
-          <button type="button" onClick={toggleSound} aria-pressed={sound}>
-            Sound {sound ? "on" : "off"}
+          <button
+            type="button"
+            onClick={toggleSound}
+            aria-pressed={sound}
+            aria-label={`Sound ${sound ? "on" : "off"}`}
+            title="Toggle sound"
+          >
+            <GameIcon name={sound ? "sound" : "mute"} />
           </button>
           {fullSupported && (
             <button
@@ -353,7 +360,7 @@ export function GameExperience() {
               onClick={() => void fullscreen()}
               aria-label="Toggle fullscreen"
             >
-              ⛶
+              <GameIcon name="fullscreen" />
             </button>
           )}
           {!isMenu && (
@@ -366,17 +373,27 @@ export function GameExperience() {
               }}
               aria-label="Pause game"
             >
-              Ⅱ
+              <GameIcon name="pause" />
             </button>
           )}
         </div>
       </header>
       {isMenu ? (
         <div className="title-block">
+          <GameIcon
+            name="weapon"
+            side="cat"
+            className="title-weapon title-cat"
+          />
           <h1>
             <span>CATS</span> <small>VS</small> <span>DOGS</span>
           </h1>
           <p>BACKYARD RUMBLE</p>
+          <GameIcon
+            name="weapon"
+            side="dog"
+            className="title-weapon title-dog"
+          />
         </div>
       ) : (
         <section className="health-row" aria-label="Match health and wind">
@@ -431,11 +448,7 @@ export function GameExperience() {
           <div className="menu-overlay">
             {!setup ? (
               <>
-                <p className="menu-tagline">
-                  Good neighbors.
-                  <br />
-                  <strong>Terrible aim.</strong>
-                </p>
+                <p className="menu-tagline">Small yard. Big rivalry.</p>
                 <button
                   className="primary play"
                   type="button"
@@ -444,7 +457,10 @@ export function GameExperience() {
                     playGameSound("ui");
                   }}
                 >
-                  PLAY <span aria-hidden="true">▶︎</span>
+                  <GameIcon name="play" />
+                  <span>
+                    LET’S PLAY<small>Make a little trouble.</small>
+                  </span>
                 </button>
                 <button
                   className="text-button"
@@ -456,7 +472,7 @@ export function GameExperience() {
               </>
             ) : (
               <div className="setup">
-                <h2>Who’s throwing?</h2>
+                <h2>Pick your showdown</h2>
                 <div className="mode-row">
                   {(["solo", "local"] as GameMode[]).map((mode) => (
                     <button
@@ -469,6 +485,7 @@ export function GameExperience() {
                         playGameSound("ui");
                       }}
                     >
+                      <GameIcon name={mode} />
                       {mode === "solo" ? "VS COMPUTER" : "2 PLAYERS"}
                     </button>
                   ))}
@@ -494,7 +511,11 @@ export function GameExperience() {
                   <p>One device. Cat first, then Dog.</p>
                 )}
                 <button className="primary" type="button" onClick={begin}>
-                  LET’S RUMBLE <span aria-hidden="true">→</span>
+                  <GameIcon
+                    name="weapon"
+                    side={view.mode === "solo" ? "cat" : "dog"}
+                  />{" "}
+                  LET’S RUMBLE
                 </button>
                 <button
                   className="text-button"
@@ -520,6 +541,8 @@ export function GameExperience() {
       ) : (
         <section
           className={`controls team-${view.turn}`}
+          data-phase={view.phase}
+          data-paused={view.paused}
           aria-label="Throw controls"
         >
           <div className="turn-status" role="status">
@@ -529,7 +552,7 @@ export function GameExperience() {
             </strong>
             <span>{view.message}</span>
           </div>
-          <div className="item-row" aria-label="One-use items">
+          <div className="item-row" aria-label="Jurus — one-use skills">
             {(Object.keys(ITEMS) as Item[]).map((item) => (
               <button
                 type="button"
@@ -549,14 +572,28 @@ export function GameExperience() {
                   publish();
                 }}
               >
-                <b aria-hidden="true">{ITEMS[item].symbol}</b>
-                <span>{ITEMS[item].name}</span>
-                <small>{view.stock[view.turn][item]}</small>
+                <GameIcon name={item} side={view.turn} />
+                <span>
+                  {
+                    {
+                      double: "Double",
+                      heavy: "Heavy",
+                      shield: "Shield",
+                      heal: "Snack",
+                    }[item]
+                  }
+                </span>
+                <small aria-hidden="true">
+                  {view.stock[view.turn][item] ? "1" : "0"}
+                </small>
               </button>
             ))}
           </div>
           <label className="aim-control">
-            Angle <output>{Math.round(view.angle)}°</output>
+            <span className="control-label">
+              <GameIcon name="aim" /> Angle
+            </span>{" "}
+            <output>{Math.round(view.angle)}°</output>
             <input
               type="range"
               min={20}
@@ -571,7 +608,9 @@ export function GameExperience() {
           </label>
           <div className="power-control">
             <span>
-              Power{" "}
+              <span className="control-label">
+                <GameIcon name="power" /> Power
+              </span>{" "}
               <output ref={powerText} aria-live="off">
                 {Math.round(view.power)}%
               </output>
@@ -598,14 +637,27 @@ export function GameExperience() {
             onLostPointerCapture={(e) => pointerEnd(e, true)}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <strong>
-              {controlled
-                ? charging
-                  ? "RELEASE!"
-                  : "HOLD TO THROW"
-                : "WATCH THE THROW"}
-            </strong>
-            <small>Space / touch & hold</small>
+            <span className="throw-art">
+              <GameIcon name="weapon" side={view.turn} />
+              <i />
+              <i />
+            </span>
+            <span className="throw-copy">
+              <strong>
+                {controlled
+                  ? charging
+                    ? "RELEASE!"
+                    : "HOLD & THROW"
+                  : "IN ACTION"}
+              </strong>
+              <small>
+                {controlled
+                  ? charging
+                    ? "Let it fly!"
+                    : "Hold Space / touch"
+                  : "Next turn incoming"}
+              </small>
+            </span>
           </button>
           <p className="rotate-hint">Landscape gives your throws more room.</p>
           {view.selected && (

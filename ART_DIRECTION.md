@@ -2,6 +2,8 @@
 
 Two rivals, one warm backyard. Flat hand-shaped outlines, not procedural 3D or photorealistic animals.
 
+UI icon family: original 64×64 SVG silhouettes, 2.8px rounded ink outlines, cream bone with ochre underside. Cat uses fish head/ribs/tail; Dog uses a rounded chew bone. Double layers two silhouettes, Heavy adds a metal cuff and impact burst, Shield uses a wind-deflecting shield, Snack uses a food bowl. Icons share these shapes across the menu, skills, and animated throw control. Charge pulls the weapon back; release snaps it forward; flight adds two short motion lines. No idle looping UI motion. Reduced motion stops these effects.
+
 - Fixed side view. 1000×640 logical pixels, camera top at world y=−80 and ground at y=460. Uniform display scaling leaves even the highest legal arc visible.
 - Blaze: orange tabby, angular ears, slim curling tail, cyan triangular bandana, smug half-smile.
 - Major Bark: blue-grey dog, floppy ears, round cheek pads, short curling tail, rust collar and gold tag.

@@ -14,6 +14,11 @@
   --color-focus: oklch(45% 0.17 290);
   --color-sky: oklch(90% 0.06 210);
   --color-scrim: oklch(25% 0.03 225 / 0.48);
+  --color-bone: oklch(97% 0.04 90);
+  --color-bone-shadow: oklch(78% 0.08 85);
+  --color-metal: oklch(64% 0.035 225);
+  --color-cat-tint: oklch(93% 0.045 215);
+  --color-dog-tint: oklch(94% 0.045 55);
   --font-body: var(--font-jakarta), "Trebuchet MS", sans-serif;
   --font-display: var(--font-body);
   --font-outlier: var(--font-jetbrains), monospace;
