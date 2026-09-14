@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import "./rumble.css";
+import "./enhanced.css";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
