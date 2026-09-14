@@ -1,0 +1,280 @@
+.game-shell {
+  position: relative;
+}
+
+.look-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 2px solid var(--color-ink);
+  border-radius: 999px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  box-shadow: 0 4px 0 var(--color-ink);
+  font: 800 13px var(--font-jakarta);
+  cursor: pointer;
+}
+
+.look-fab:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--color-ink);
+}
+
+.look-panel {
+  position: fixed;
+  right: 18px;
+  bottom: 74px;
+  z-index: 39;
+  width: min(390px, calc(100vw - 28px));
+  max-height: min(620px, calc(100dvh - 96px));
+  overflow: auto;
+  padding: 16px;
+  border: 2px solid var(--color-ink);
+  border-radius: 22px;
+  background: var(--color-paper);
+  box-shadow: 0 8px 0 var(--color-ink);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px) scale(0.98);
+  transform-origin: bottom right;
+  transition:
+    opacity 140ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+.look-panel.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.look-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.look-heading strong,
+.look-heading small {
+  display: block;
+}
+
+.look-heading strong {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.look-heading small {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.look-heading > button {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: 2px solid var(--color-ink);
+  border-radius: 50%;
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.look-group + .look-group {
+  margin-top: 14px;
+}
+
+.look-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.arena-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.arena-option,
+.skin-options button {
+  min-width: 0;
+  border: 2px solid var(--color-ink);
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+  font: 800 11px var(--font-jakarta);
+  cursor: pointer;
+}
+
+.arena-option {
+  padding: 5px;
+  border-radius: 14px;
+  text-align: left;
+}
+
+.arena-option > span:last-child {
+  display: block;
+  padding: 5px 4px 3px;
+}
+
+.arena-preview {
+  display: block;
+  width: 100%;
+  height: 54px;
+  border: 1.5px solid var(--color-ink);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.arena-preview::before,
+.arena-preview::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.arena-preview::before {
+  top: 0;
+  height: 67%;
+}
+
+.arena-preview::after {
+  bottom: 0;
+  height: 34%;
+}
+
+.arena-sunny .arena-preview::before {
+  background: linear-gradient(#b9e5eb, #d6f1ea);
+}
+
+.arena-sunny .arena-preview::after {
+  background: #9ab765;
+}
+
+.arena-sunset .arena-preview::before {
+  background: linear-gradient(#725a91, #f3a067 72%, #f6d58e);
+}
+
+.arena-sunset .arena-preview::after {
+  background: #8e9b5c;
+}
+
+.arena-night .arena-preview::before {
+  background: linear-gradient(#16233f, #334d70);
+}
+
+.arena-night .arena-preview::after {
+  background: #536f58;
+}
+
+.arena-sakura .arena-preview::before {
+  background: linear-gradient(#ccecf2, #f6dce5);
+}
+
+.arena-sakura .arena-preview::after {
+  background: #a4bf72;
+}
+
+.arena-option[aria-pressed="true"],
+.skin-options button[aria-pressed="true"] {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  box-shadow: inset 0 0 0 2px var(--color-paper);
+}
+
+.skin-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.skin-options button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 6px;
+  border-radius: 999px;
+}
+
+.skin-dot {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 2px solid var(--color-ink);
+  border-radius: 50%;
+}
+
+.cat-ginger { background: #efa345; }
+.cat-tuxedo { background: #46545c; }
+.cat-snow { background: #f4ead9; }
+.dog-slate { background: #92a5aa; }
+.dog-brown { background: #9d6b4f; }
+.dog-cream { background: #dbc79f; }
+
+/* Make the attack meters feel like gauges rather than rigid boxes. */
+.power-track {
+  border-radius: 999px;
+}
+
+.power-track i {
+  border-radius: 999px;
+  transform-origin: left center;
+}
+
+.health-track,
+.health-track i {
+  border-radius: 999px;
+}
+
+.rumble .throw-button {
+  border-radius: 999px;
+}
+
+@media (max-width: 639px) {
+  .look-fab {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .look-panel {
+    right: 10px;
+    bottom: 66px;
+    width: calc(100vw - 20px);
+    border-radius: 18px;
+  }
+
+  .arena-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .skin-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .look-panel {
+    transition: none;
+  }
+}
