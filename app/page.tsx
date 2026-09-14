@@ -1,5 +1,5 @@
-import { GameExperience } from "./components/GameExperience";
+import { GameShell } from "./components/GameShell";
 
 export default function Home() {
-  return <GameExperience />;
+  return <GameShell />;
 }
