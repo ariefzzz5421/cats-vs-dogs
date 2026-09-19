@@ -11,7 +11,7 @@ UI icon family: original 64×64 SVG silhouettes, 2.8px rounded ink outlines, cre
 - Thick blue-charcoal outer edges (3 logical px), thin face detail (1.5–2 px). No baked glossy lighting. Cream muzzles and eye whites.
 - Warm cream menu; cyan Cat and rust Dog accents; mustard charge/wind; quiet blue sky and olive grass. Named Canvas palette in renderer; named UI tokens in tokens.css.
 - One soft oval contact shadow. Feet anchor every reaction. Head/arm/torso/tail drawn separately.
-- Charge: backward lean and squash, independent raised throwing arm. Throw: 160 ms anticipation then forward follow-through.
+- Charge: backward lean and squash, independent raised throwing arm and a curved power dial above the fighter. Throw: 240 ms continuous wind-up/swing then physical release and 300 ms recovery. A short four-dot hint indicates angle without revealing the landing point.
 - Hit: short recoil, surprised mouth, dust/stars and number. Miss: brief opponent bounce. Victory: small celebratory hop. Defeat: grounded slump.
 - Reduced motion keeps facial pose and essential projectile motion; no shake, particles, leaves, body bob, or cloud drift.
 - Background never obscures a shot. Wall uses the exact arena rectangle; no decorative collider outside it.

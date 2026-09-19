@@ -1,5 +1,6 @@
-import { ARENA, NAMES, PHYSICS, other } from "./constants";
-import { simulateShot, trajectoryPointAt } from "./ballistics";
+import { ARENA, NAMES, other } from "./constants";
+import { trajectoryPointAt } from "./ballistics";
+import { throwPose } from "./presentation";
 import type { MatchState, Side } from "./types";
 
 const C = {
@@ -421,8 +422,9 @@ function backdrop(c: Context, themeId: ArenaTheme) {
 
   c.save();
   c.translate(927, 444);
+  c.save(); c.translate(-4, -19); c.rotate(-0.3); c.scale(0.6, 0.6); weapon(c, "dog"); c.restore();
   path(c, "M-25-14H25L18 0H-18Z", C.dogTeam);
-  text(c, "B", 0, -2, 11, "#fff0d4");
+  c.save(); c.translate(0, -6); c.scale(0.32, 0.32); weapon(c, "dog"); c.restore();
   c.restore();
 
   line(c, 225, 306, 418, 316, t.fenceDark, 2);
@@ -476,38 +478,35 @@ function weapon(c: Context, side: Side) {
 function drawAimGuide(c: Context, s: MatchState, reduced: boolean) {
   if (s.selected === "heal") return;
   const style = fighterStyle(s.turn);
-  const guidePower = s.phase === "charging" ? Math.max(s.power, 14) : 58;
-  const result = simulateShot({
-    side: s.turn,
-    angle: s.angle,
-    power: guidePower,
-    wind: s.wind,
-    item: s.selected ?? undefined,
-  });
-  const points = result.points;
-  if (points.length < 3) return;
-
-  const step = Math.max(1, Math.ceil(points.length / 88));
+  const origin = ARENA.origins[s.turn];
+  const angle = s.angle * Math.PI / 180;
+  const direction = s.turn === "cat" ? 1 : -1;
   c.save();
-  c.globalAlpha = s.phase === "charging" ? 0.8 : 0.56;
-  c.strokeStyle = style.accent;
-  c.lineWidth = s.phase === "charging" ? 3.5 : 3;
-  c.setLineDash(reduced ? [9, 11] : [6, 9]);
-  c.beginPath();
-  c.moveTo(points[0].x, points[0].y);
-  for (let i = step; i < points.length; i += step) {
-    c.lineTo(points[i].x, points[i].y);
+  for (let i = 1; i <= 4; i++) {
+    c.globalAlpha = 0.7 - i * 0.12;
+    ellipse(c, origin.x + direction * Math.cos(angle) * i * 13,
+      origin.y - Math.sin(angle) * i * 13, reduced ? 2 : 2.5, 2.5, style.accent);
   }
-  const nearImpact = points[Math.max(1, points.length - 3)];
-  c.lineTo(nearImpact.x, nearImpact.y);
-  c.stroke();
-  c.setLineDash([]);
+  c.restore();
+}
 
-  const previous = points[Math.max(0, points.length - 12)];
-  const angle = Math.atan2(nearImpact.y - previous.y, nearImpact.x - previous.x);
-  c.translate(nearImpact.x, nearImpact.y);
-  c.rotate(angle);
-  path(c, "M0 0L-15-8L-11 0L-15 8Z", style.accent, style.accent, 0, false);
+function chargeDial(c: Context, s: MatchState) {
+  if (!["aiming", "charging", "throwing"].includes(s.phase)) return;
+  const x = ARENA.fighters[s.turn].x;
+  const y = ARENA.ground - 162;
+  const charging = s.phase !== "aiming";
+  c.save();
+  c.lineWidth = 12;
+  c.strokeStyle = C.ink;
+  c.beginPath(); c.arc(x, y, 57, Math.PI * 1.12, Math.PI * 1.88); c.stroke();
+  c.lineWidth = 7;
+  c.strokeStyle = "#fff9e9"; c.stroke();
+  if (charging) {
+    c.strokeStyle = s.power > 85 ? C.dogTeam : C.sun;
+    c.beginPath(); c.arc(x, y, 57, Math.PI * 1.12, Math.PI * (1.12 + 0.76 * s.power / 100)); c.stroke();
+  }
+  text(c, charging ? `${Math.round(s.power)}%` : "HOLD", x, y - 19, 20);
+  text(c, charging ? "RELEASE!" : "TO THROW", x, y - 2, 11);
   c.restore();
 }
 
@@ -530,6 +529,7 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean) {
   const idle = Math.sin(time * 2.25 + (cat ? 0 : 1.2));
   const breathe = reduced ? 0 : Math.sin(time * 3.1) * 0.018;
   const recoil = throwing ? Math.sin(Math.min(1, s.elapsed * 5) * Math.PI) : 0;
+  const pose = throwPose(active ? s.phase : "menu", s.elapsed, s.power);
 
   c.save();
   c.translate(ARENA.fighters[side].x, ARENA.ground);
@@ -545,10 +545,9 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean) {
 
   c.scale(cat ? 1 : -1, 1);
   if (!reduced) {
-    c.translate(-recoil * 3, idle * 1.6);
+    c.translate(-recoil * 3, 0);
     c.rotate(
-      charge * -0.12 +
-        recoil * 0.08 +
+      pose.lean +
         (hit ? -Math.sin(hit.age * 25) * 0.13 * Math.max(0, 1 - hit.age) : 0),
     );
     c.scale(1 + charge * 0.05 - breathe * 0.5, 1 - charge * 0.07 + breathe);
@@ -599,7 +598,7 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean) {
 
   c.save();
   c.translate(23, -64);
-  c.rotate(charge * -1.1 + (throwing ? 0.82 : -0.25) + idle * 0.035);
+  c.rotate(pose.arm + idle * 0.035);
   path(c, "M-7 0Q-14-25-3-32Q9-37 14-23L13 0Z", style.fur);
   ellipse(c, 5, -29, 12, 12, style.fur, true);
   if (
@@ -643,6 +642,13 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean) {
   } else if (style.mark === "spot") {
     ellipse(c, -20, -18, 15, 10, style.dark);
     ellipse(c, 28, 3, 9, 7, style.dark);
+  }
+
+  if (s.health[side] <= 60) {
+    c.save(); c.translate(-24, -29); c.rotate(-0.3);
+    path(c, "M-11-5H11V5H-11Z", "#f7dbc2", C.ink, 1);
+    line(c, -3, -3, 3, 3, C.brick, 2);
+    c.restore();
   }
 
   const blink = time % 4.1 > 3.98 || defeat;
@@ -740,6 +746,20 @@ export class GameRenderer {
 
     fighter(c, s, "cat", reduced);
     fighter(c, s, "dog", reduced);
+    chargeDial(c, s);
+
+    for (const side of ["cat", "dog"] as const) {
+      const reaction = s.effects.find((effect) => effect.impact.target === side);
+      if (!reaction) continue;
+      c.save();
+      c.globalAlpha = Math.max(0, 1 - reaction.age / 0.8);
+      for (let i = 0; i < 3; i++) {
+        const a = i * Math.PI * 2 / 3 + (reduced ? 0 : reaction.age * 8);
+        text(c, "✦", ARENA.fighters[side].x + Math.cos(a) * 42,
+          ARENA.ground - 167 + Math.sin(a) * 10, 23, C.sun);
+      }
+      c.restore();
+    }
 
     if (["aiming", "charging"].includes(s.phase)) {
       drawAimGuide(c, s, reduced);
