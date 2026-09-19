@@ -1,6 +1,7 @@
 import { simulateShot, makeDeterministicWind } from "./ballistics";
 import { BOT_PROFILES, chooseBotShot, freshBot, learnFromShot } from "./bot";
 import { NAMES, PHYSICS, clamp, other } from "./constants";
+import { THROW_DURATION } from "./presentation";
 import type { Difficulty, GameMode, Item, MatchState, Phase } from "./types";
 const inventory = () => ({ double: 1, heavy: 1, shield: 1, heal: 1 });
 export function createMatch(
@@ -151,7 +152,7 @@ export function advance(s: MatchState, delta: number) {
       s.power = s.botPower;
       phase(s, "throwing", "Major Bark throws!");
     }
-  } else if (s.phase === "throwing" && s.elapsed >= 0.16) launch(s);
+  } else if (s.phase === "throwing" && s.elapsed >= THROW_DURATION) launch(s);
   else if (s.phase === "flying") {
     for (const flight of s.flights) {
       if (

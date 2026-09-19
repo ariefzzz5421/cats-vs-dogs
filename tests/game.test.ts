@@ -101,7 +101,7 @@ test("power caps, duplicate release is rejected, flight blocks charge", () => {
   assert.equal(releaseCharge(s), true);
   assert.equal(releaseCharge(s), false);
   assert.equal(startCharge(s), false);
-  step(s, 0.2);
+  step(s, 0.25);
   assert.equal(s.phase, "flying");
   assert.equal(startCharge(s), false);
 });
@@ -150,7 +150,7 @@ test("double toss resolves two independent flights and consumes one charge", () 
   const s = ready();
   selectItem(s, "double");
   fire(s);
-  step(s, 0.2);
+  step(s, 0.25);
   assert.equal(s.flights.length, 2);
   assert.equal(s.stock.cat.double, 0);
   step(s, 3);

@@ -67,8 +67,9 @@ export function GameShell() {
     } catch {
       // Cosmetic settings are optional.
     }
-    setLook(next);
     applyLook(next);
+    const frame = requestAnimationFrame(() => setLook(next));
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   const updateLook = (patch: Partial<LookSettings>) => {

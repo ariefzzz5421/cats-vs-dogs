@@ -26,6 +26,8 @@ import {
   setSoundEnabled,
   startChargeSound,
   stopChargeSound,
+  stopGameSounds,
+  updateChargeSound,
 } from "@/lib/game/audio";
 import type { Difficulty, GameMode, MatchState, Item } from "@/lib/game/types";
 import { GameIcon } from "./GameIcon";
@@ -131,6 +133,7 @@ export function GameExperience() {
       while (accumulator >= PHYSICS.dt) {
         const before = s.phase,
           hp = s.health.cat + s.health.dog;
+        const previousEffects = new Set(s.effects);
         advance(s, PHYSICS.dt);
         accumulator -= PHYSICS.dt;
         if (s.phase !== before) {
@@ -151,12 +154,14 @@ export function GameExperience() {
           )
             playGameSound("laugh");
         }
-        if (s.health.cat + s.health.dog < hp) playGameSound("hit");
-        else if (s.effects.some((e) => e.age === 0))
-          playGameSound(
-            s.effects.at(-1)?.impact.kind === "wall" ? "wall" : "ground",
-          );
+        if (s.health.cat + s.health.dog > hp) playGameSound("heal");
+        for (const effect of s.effects) {
+          if (previousEffects.has(effect)) continue;
+          playGameSound(effect.impact.kind === "target" ? "hit" : effect.impact.kind === "wall" ? "wall" : "ground");
+          if (effect.impact.target) playGameSound(effect.impact.target);
+        }
       }
+      if (s.phase === "charging" && !s.paused) updateChargeSound(s.power);
       context.setTransform(
         width / ARENA.width,
         0,
@@ -193,7 +198,7 @@ export function GameExperience() {
     const suspend = () => {
       const s = engine.current;
       cancelCharge(s);
-      stopChargeSound();
+      stopGameSounds();
       activePointer.current = null;
       keyboardCharge.current = false;
       if (s.phase !== "menu" && s.phase !== "gameOver") s.paused = true;
@@ -208,7 +213,7 @@ export function GameExperience() {
       if (event.code === "Escape") {
         if (!engine.current.paused) {
           togglePause(engine.current);
-          stopChargeSound();
+          stopGameSounds();
           setView(copyState(engine.current));
         }
         return;
@@ -249,7 +254,7 @@ export function GameExperience() {
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
-      stopChargeSound();
+      stopGameSounds();
       window.removeEventListener("blur", suspend);
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("keydown", down);
@@ -280,7 +285,7 @@ export function GameExperience() {
     publish();
   };
   const menu = () => {
-    stopChargeSound();
+    stopGameSounds();
     activePointer.current = null;
     keyboardCharge.current = false;
     engine.current = createMatch(
@@ -368,7 +373,7 @@ export function GameExperience() {
               type="button"
               onClick={() => {
                 togglePause(engine.current);
-                stopChargeSound();
+                stopGameSounds();
                 publish();
               }}
               aria-label="Pause game"
@@ -567,8 +572,7 @@ export function GameExperience() {
                   (item === "heal" && view.health[view.turn] === 100)
                 }
                 onClick={() => {
-                  selectItem(engine.current, item);
-                  playGameSound("ui");
+                  if (selectItem(engine.current, item)) playGameSound(item === "heal" ? "heal" : "ui");
                   publish();
                 }}
               >

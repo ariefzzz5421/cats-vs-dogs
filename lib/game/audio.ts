@@ -6,6 +6,9 @@ export type GameSound =
   | "ground"
   | "hit"
   | "laugh"
+  | "cat"
+  | "dog"
+  | "heal"
   | "victory"
   | "defeat";
 
@@ -13,6 +16,22 @@ let context: AudioContext | null = null;
 let enabled = true;
 let chargeOscillator: OscillatorNode | null = null;
 let chargeGain: GainNode | null = null;
+let master: GainNode | null = null;
+const voices = new Set<AudioScheduledSourceNode>();
+
+function output(audio: AudioContext) {
+  if (!master) {
+    master = audio.createGain();
+    master.connect(audio.destination);
+  }
+  return master;
+}
+
+export function stopGameSounds() {
+  stopChargeSound();
+  for (const voice of voices) voice.stop();
+  voices.clear();
+}
 
 function getContext() {
   if (typeof window === "undefined" || !enabled) return null;
@@ -34,23 +53,28 @@ function tone(
   volume: number,
   type: OscillatorType = "sine",
   endFrequency?: number,
+  delay = 0,
 ) {
   const audio = getContext();
   if (!audio) return;
   const oscillator = audio.createOscillator();
   const gain = audio.createGain();
+  const at = audio.currentTime + delay;
   oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, audio.currentTime);
+  oscillator.frequency.setValueAtTime(frequency, at);
   if (endFrequency)
     oscillator.frequency.exponentialRampToValueAtTime(
       endFrequency,
-      audio.currentTime + duration,
+      at + duration,
     );
-  gain.gain.setValueAtTime(volume, audio.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + duration);
-  oscillator.connect(gain).connect(audio.destination);
-  oscillator.start();
-  oscillator.stop(audio.currentTime + duration);
+  gain.gain.setValueAtTime(0.001, at);
+  gain.gain.linearRampToValueAtTime(volume, at + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.001, at + duration);
+  oscillator.connect(gain).connect(output(audio));
+  voices.add(oscillator);
+  oscillator.onended = () => { voices.delete(oscillator); oscillator.disconnect(); gain.disconnect(); };
+  oscillator.start(at);
+  oscillator.stop(at + duration);
 }
 
 function noise(duration: number, volume: number, cutoff: number) {
@@ -69,13 +93,16 @@ function noise(duration: number, volume: number, cutoff: number) {
   filter.frequency.value = cutoff;
   gain.gain.setValueAtTime(volume, audio.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + duration);
-  source.connect(filter).connect(gain).connect(audio.destination);
+  source.connect(filter).connect(gain).connect(output(audio));
+  voices.add(source);
+  source.onended = () => { voices.delete(source); source.disconnect(); filter.disconnect(); gain.disconnect(); };
   source.start();
 }
 
 export function setSoundEnabled(next: boolean) {
   enabled = next;
-  if (!next) stopChargeSound();
+  if (!next) stopGameSounds();
+  if (master && context) master.gain.setValueAtTime(next ? 1 : 0, context.currentTime);
 }
 
 export function playGameSound(sound: GameSound, intensity = 1) {
@@ -97,12 +124,26 @@ export function playGameSound(sound: GameSound, intensity = 1) {
   }
   if (sound === "laugh") {
     tone(430, 0.09, 0.045, "triangle", 610);
-    window.setTimeout(() => tone(520, 0.1, 0.04, "triangle", 690), 90);
+    tone(520, 0.1, 0.04, "triangle", 690, 0.09);
   }
   if (sound === "victory") {
     tone(392, 0.16, 0.055);
-    window.setTimeout(() => tone(523, 0.18, 0.06), 150);
-    window.setTimeout(() => tone(659, 0.25, 0.065), 310);
+    tone(523, 0.18, 0.06, "sine", undefined, 0.15);
+    tone(659, 0.25, 0.065, "sine", undefined, 0.31);
+  }
+  // Original stylized vocal gestures, not samples from the reference game.
+  if (sound === "cat") {
+    tone(720, 0.12, 0.035, "sawtooth", 1100);
+    tone(1100, 0.23, 0.03, "triangle", 440, 0.08);
+  }
+  if (sound === "dog") {
+    tone(190, 0.13, 0.055, "sawtooth", 85);
+    tone(230, 0.15, 0.04, "triangle", 95, 0.16);
+    noise(0.09, 0.025, 700);
+  }
+  if (sound === "heal") {
+    tone(523, 0.1, 0.045, "triangle");
+    tone(784, 0.22, 0.045, "sine", 1046, 0.1);
   }
   if (sound === "defeat") tone(240, 0.42, 0.05, "triangle", 90);
 }
@@ -114,13 +155,14 @@ export function startChargeSound() {
   chargeGain = audio.createGain();
   chargeOscillator.type = "sawtooth";
   chargeOscillator.frequency.setValueAtTime(100, audio.currentTime);
-  chargeOscillator.frequency.exponentialRampToValueAtTime(
-    520,
-    audio.currentTime + 1.4,
-  );
   chargeGain.gain.setValueAtTime(0.018, audio.currentTime);
-  chargeOscillator.connect(chargeGain).connect(audio.destination);
+  chargeOscillator.connect(chargeGain).connect(output(audio));
   chargeOscillator.start();
+}
+
+export function updateChargeSound(power: number) {
+  if (!context || !chargeOscillator) return;
+  chargeOscillator.frequency.setTargetAtTime(100 + Math.max(0, Math.min(100, power)) * 4.2, context.currentTime, 0.025);
 }
 
 export function stopChargeSound() {
@@ -130,6 +172,8 @@ export function stopChargeSound() {
     context.currentTime + 0.05,
   );
   chargeOscillator.stop(context.currentTime + 0.06);
+  const oscillator = chargeOscillator, gain = chargeGain;
+  oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
   chargeOscillator = null;
   chargeGain = null;
 }
