@@ -1,7 +1,6 @@
 /* Hallmark · macrostructure: stage-first game · tone: playful arcade · anchor hue: warm backyard
- * User-directed game layout; no website navigation or marketing footer.
- * design-system: design.md · illustrated weapon controls and play-ticket menu
- * pre-emit critique: P4 H4 E4 S5 R4 V4 */
+ * design-system: design.md · designed-as-app · arena-led HUD and rivalry menu
+ * pre-emit critique: P5 H4 E4 S5 R4 V4 */
 .rumble {
   width: min(100% - 24px, 1200px);
   margin: auto;
@@ -75,18 +74,18 @@ input:focus-visible {
 .title-block {
   position: relative;
   text-align: center;
-  margin: 12px auto 24px;
-  width: min(100%, 680px);
+  margin: 8px auto 18px;
+  width: min(100%, 760px);
 }
 .title-block h1 {
-  font-size: clamp(32px, 6vw, 72px);
+  font-size: clamp(36px, 7vw, 82px);
   font-weight: 900;
   line-height: 1.04;
   letter-spacing: -3px;
   margin: 0;
   paint-order: stroke fill;
   -webkit-text-stroke: 2px var(--color-ink);
-  text-shadow: 0 4px 0 var(--color-ink);
+  text-shadow: 0 5px 0 var(--color-ink);
 }
 .title-block h1 > span {
   display: inline-block;
@@ -113,13 +112,13 @@ input:focus-visible {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.24em;
-  margin: 16px 0 0;
+  margin: 12px 0 0;
 }
 .title-weapon {
   position: absolute;
   top: 8px;
-  width: 64px;
-  height: 64px;
+  width: 76px;
+  height: 76px;
 }
 .title-cat {
   left: 0;
@@ -142,7 +141,7 @@ input:focus-visible {
 .playfield {
   position: relative;
   border: 3px solid var(--color-ink);
-  border-radius: 20px;
+  border-radius: 16px;
   overflow: clip;
   background: var(--color-sky);
 }
@@ -158,18 +157,28 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 12px;
+  padding: 20px 12px;
   background: var(--color-paper);
 }
 .menu-tagline {
-  margin: 0 0 12px;
-  font-size: 16px;
-  font-weight: 700;
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 800;
   line-height: 1.15;
   text-align: center;
 }
-.menu-tagline strong {
-  font-size: 28px;
+.menu-tagline span:first-child {
+  color: var(--color-cat-label);
+}
+.menu-tagline span:nth-child(2) {
+  color: var(--color-dog-label);
+}
+.menu-tagline small {
+  display: block;
+  margin-top: 5px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 .rumble .primary,
 .game-dialog .primary {
@@ -184,8 +193,8 @@ input:focus-visible {
   align-items: center;
   gap: 12px;
   padding: 12px 24px 12px 16px;
-  min-width: 250px;
-  border-radius: 16px;
+  min-width: 270px;
+  border-radius: 10px;
   font-size: 25px;
   text-align: left;
   transform: rotate(-2deg);
@@ -273,7 +282,11 @@ input:focus-visible {
   grid-template-columns: minmax(0, 1fr) 76px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
-  padding: 4px 0 12px;
+  padding: 7px 9px 11px;
+  margin-bottom: 4px;
+  border: 2px solid var(--color-ink);
+  border-radius: 12px;
+  background: var(--color-paper-2);
 }
 .health {
   min-width: 0;
@@ -283,17 +296,33 @@ input:focus-visible {
   justify-content: space-between;
   gap: 4px;
   font-size: 13px;
+  align-items: center;
 }
 .health strong {
   font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.health strong .game-icon {
+  width: 27px;
+  height: 27px;
+  background: var(--color-cat-tint);
+  border: 1px solid var(--color-ink);
+  border-radius: 50%;
+}
+.health-dog strong .game-icon {
+  background: var(--color-dog-tint);
 }
 .health small {
   font-size: 10px;
 }
 .health-track {
-  height: 13px;
+  height: 17px;
   border: 2px solid var(--color-ink);
-  border-radius: 4px;
+  border-radius: 5px;
   background: var(--color-paper-2);
   overflow: clip;
   margin-top: 5px;
@@ -305,6 +334,7 @@ input:focus-visible {
   background: var(--color-accent-2);
   transform-origin: left;
   transition: transform 250ms var(--ease-out);
+  background-image: repeating-linear-gradient(90deg, transparent 0 12%, var(--color-ink) 12% calc(12% + 1px), transparent calc(12% + 1px) 25%);
 }
 .health-dog {
   grid-column: 3;
@@ -318,6 +348,7 @@ input:focus-visible {
   grid-column: 2;
   grid-row: 1;
   text-align: center;
+  border-inline: 2px solid var(--color-rule);
 }
 .wind small {
   font-size: 10px;
@@ -326,14 +357,28 @@ input:focus-visible {
   display: block;
 }
 .wind strong {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
   font: 800 20px var(--font-outlier);
   white-space: nowrap;
+}
+.wind-arrow {
+  color: var(--color-dog-label);
+  font-size: 1.35em;
+  line-height: 0.8;
+  transition: transform 180ms var(--ease-out);
 }
 .controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 9px;
+  padding: 12px;
+  border: 2px solid var(--color-ink);
+  border-radius: 12px;
+  background: var(--color-paper-2);
 }
 .turn-status {
   grid-column: 1 / -1;
@@ -341,10 +386,13 @@ input:focus-visible {
   flex-direction: column;
   gap: 2px;
   font-size: 13px;
+  padding-bottom: 6px;
+  border-bottom: 2px dashed var(--color-rule);
 }
 .turn-status strong {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--color-cat-label);
+  letter-spacing: 0.04em;
 }
 .team-dog .turn-status strong {
   color: var(--color-dog-label);
@@ -368,7 +416,7 @@ input:focus-visible {
   border-color: var(--color-ink);
   background: var(--color-cat-tint);
   font-size: 11px;
-  border-radius: 12px;
+  border-radius: 7px;
   box-shadow: 0 3px 0 var(--color-ink);
   min-width: 0;
 }
@@ -391,6 +439,7 @@ input:focus-visible {
   box-shadow:
     0 3px 0 var(--color-ink),
     inset 0 0 0 2px var(--color-paper);
+  transform: translateY(2px);
 }
 .item-row small {
   position: absolute;
@@ -437,7 +486,7 @@ input:focus-visible {
   border: 2px solid var(--color-ink);
   border-radius: 8px;
   overflow: clip;
-  background: var(--color-paper-2);
+  background: var(--color-paper);
 }
 .power-track i {
   display: block;
@@ -574,10 +623,38 @@ input:focus-visible {
   text-align: center;
   font-size: 42px;
   font-weight: 900;
+  color: var(--color-paper);
+  text-shadow: 0 4px 0 var(--color-ink), 2px 0 var(--color-ink), -2px 0 var(--color-ink);
 }
 .round-intro small {
   display: block;
   font-size: 18px;
+}
+@media (max-width: 420px) {
+  .health-row {
+    grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr);
+    gap: 5px;
+    padding-inline: 6px;
+  }
+  .health > div:first-child {
+    flex-wrap: wrap;
+    line-height: 1.1;
+  }
+  .health strong {
+    width: 100%;
+    font-size: 11px;
+  }
+  .health strong .game-icon {
+    width: 20px;
+    height: 20px;
+  }
+  .health > div:first-child > span {
+    margin-left: auto;
+    font-size: 11px;
+  }
+  .wind strong {
+    font-size: 16px;
+  }
 }
 .game-dialog {
   border: 3px solid var(--color-ink);
@@ -624,26 +701,23 @@ input:focus-visible {
 }
 @media (min-width: 640px) {
   .rumble {
-    width: min(100% - 40px, 1200px, calc((100dvh - 310px) * 1.5625));
+    width: min(100% - 40px, 1200px, calc((100dvh - 270px) * 1.5625));
     min-width: min(600px, 100% - 40px);
   }
   .is-menu {
-    width: min(100% - 40px, 1120px, calc((100dvh - 240px) * 1.5625));
+    width: min(100% - 40px, 1120px, calc((100dvh - 225px) * 1.5625));
   }
   .menu-overlay {
     position: absolute;
     left: 50%;
-    top: 9%;
+    top: 10%;
     transform: translateX(-50%);
     width: 350px;
     background: transparent;
     padding: 0;
   }
   .menu-tagline {
-    font-size: 24px;
-  }
-  .menu-tagline strong {
-    font-size: 34px;
+    font-size: 22px;
   }
   .health-row {
     grid-template-columns: minmax(0, 1fr) 140px minmax(0, 1fr);
@@ -711,32 +785,88 @@ input:focus-visible {
     align-self: center;
   }
 }
+@media (min-width: 960px) {
+  .is-match {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 8px 16px;
+    width: min(100% - 40px, 1200px);
+  }
+  .is-match .game-toolbar,
+  .is-match .health-row {
+    grid-column: 1 / -1;
+  }
+  .is-match .game-toolbar { grid-row: 1; }
+  .is-match .health-row { grid-row: 2; margin-bottom: 0; }
+  .is-match .playfield { grid-column: 1; grid-row: 3; }
+  .is-match .controls {
+    grid-column: 2;
+    grid-row: 3;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-self: center;
+    margin-top: 0;
+    padding: 12px;
+    gap: 8px;
+  }
+  .is-match .turn-status { grid-column: 1 / -1; grid-row: 1; }
+  .is-match .aim-control { grid-column: 1 / -1; grid-row: 2; }
+  .is-match .power-control { grid-column: 1 / -1; grid-row: 3; }
+  .is-match .item-row { grid-column: 1 / -1; grid-row: 4; }
+  .is-match .item-row button {
+    flex-direction: column;
+    min-height: 58px;
+    padding: 2px;
+    gap: 0;
+  }
+  .is-match .item-row .game-icon { width: 32px; height: 32px; }
+  .is-match .throw-button {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    flex-direction: row;
+    gap: 8px;
+  }
+  .is-match .throw-copy { text-align: left; }
+  .is-match .item-description { grid-column: 1 / -1; grid-row: 6; }
+}
 @media (min-width: 640px) and (max-height: 600px) {
-  .rumble {
-    width: min(100% - 96px, 1000px);
-    min-width: 0;
+  .rumble { min-width: 0; }
+  .is-match {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 280px);
+    gap: 5px 12px;
+    width: min(100% - 30px, 1050px);
   }
   .is-match .playfield {
-    width: min(100%, calc((100dvh - 196px) * 1.5625));
-    margin-inline: auto;
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    margin: 0;
+    align-self: start;
   }
   .game-toolbar {
     position: absolute;
-    right: 8px;
-    top: 4px;
-    min-height: 44px;
+    right: 14px;
+    top: 2px;
+    min-height: 36px;
   }
   .small-brand {
     display: none;
   }
   .game-toolbar > div {
-    flex-direction: column;
-    gap: 0;
+    flex-direction: row;
+    gap: 4px;
+  }
+  .game-toolbar button {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
   }
   .health-row {
+    grid-column: 1 / -1;
+    grid-row: 1;
     padding: 4px 0 6px;
     gap: 8px;
-    margin-right: 48px;
+    margin-right: 132px;
   }
   .health > div:first-child {
     font-size: 12px;
@@ -749,9 +879,12 @@ input:focus-visible {
     font-size: 17px;
   }
   .controls {
-    margin-top: 4px;
-    grid-template-columns: 1fr 1fr 1.3fr;
+    grid-column: 2;
+    grid-row: 2;
+    margin-top: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 3px 12px;
+    padding: 8px;
   }
   .turn-status {
     grid-column: 1 / -1;
@@ -761,21 +894,22 @@ input:focus-visible {
     font-size: 11px;
   }
   .item-row {
-    grid-column: 1 / 3;
-    grid-row: 3;
+    grid-column: 1 / -1;
+    grid-row: 4;
   }
   .item-row button {
     min-height: 44px;
-    flex-direction: row;
+    flex-direction: column;
     justify-content: center;
-    gap: 3px;
+    gap: 0;
+    padding: 1px;
   }
   .item-row .game-icon {
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
   }
   .item-row span {
-    font-size: 10px;
+    font-size: 9px;
   }
   .item-row small {
     top: 0;
@@ -783,8 +917,21 @@ input:focus-visible {
     font-size: 8px;
   }
   .throw-button {
-    grid-column: 3;
-    grid-row: 2 / 4;
+    grid-column: 1 / -1;
+    grid-row: 5;
+    flex-direction: row;
+    gap: 4px;
+  }
+  .throw-copy {
+    text-align: left;
+  }
+  .aim-control {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .power-control {
+    grid-column: 1 / -1;
+    grid-row: 3;
   }
   .aim-control input {
     min-height: 28px;

@@ -1,7 +1,7 @@
 import { ARENA, NAMES, PHYSICS, other } from "./constants";
 import { trajectoryPointAt } from "./ballistics";
 import { BOT_PROFILES, botState, botTrackingOffset } from "./bot";
-import { cameraKick, hitMotion, throwPose, THROW_DURATION } from "./presentation";
+import { cameraKick, cameraTarget, FIGHTER_VISUAL_SCALE, hitMotion, throwPose, THROW_DURATION } from "./presentation";
 import type { MatchState, Side } from "./types";
 
 const C = {
@@ -336,9 +336,10 @@ function backdrop(c: Context, themeId: ArenaTheme) {
     0,
   );
 
+  c.save();
+  c.globalAlpha = 0.52;
   for (const [x, y, width] of [
     [-32, 270, 181],
-    [658, 281, 157],
     [911, 257, 159],
   ] as const) {
     c.fillStyle = t.house;
@@ -363,13 +364,14 @@ function backdrop(c: Context, themeId: ArenaTheme) {
     );
   }
 
-  for (const x of [70, 340, 625, 966]) {
+  for (const x of [70, 340, 966]) {
     c.fillStyle = t.fenceDark;
     c.fillRect(x, 305, 10, 95);
     ellipse(c, x - 12, 300, 36, 36, t.leaf);
     ellipse(c, x + 20, 295, 37, 44, t.leaf);
     ellipse(c, x, 274, 34, 37, t.leafLight);
   }
+  c.restore();
 
   if (themeId === "sakura") {
     for (let i = 0; i < 24; i++) {
@@ -402,7 +404,7 @@ function backdrop(c: Context, themeId: ArenaTheme) {
     0,
   );
 
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 18; i++) {
     ellipse(
       c,
       (i * 137) % 1000,
@@ -428,9 +430,12 @@ function backdrop(c: Context, themeId: ArenaTheme) {
   c.save(); c.translate(0, -6); c.scale(0.32, 0.32); weapon(c, "dog"); c.restore();
   c.restore();
 
+  c.save();
+  c.globalAlpha = 0.48;
   line(c, 225, 306, 418, 316, t.fenceDark, 2);
   path(c, "M283 310L278 342L303 344L308 311Z", "#fff0d4", "#fff0d4", 0);
   path(c, "M333 313L331 337L351 339L357 314Z", C.catTeam, C.catTeam, 0);
+  c.restore();
 
   const w = ARENA.wall;
   c.fillStyle = C.mortar;
@@ -442,10 +447,13 @@ function backdrop(c: Context, themeId: ArenaTheme) {
     line(c, seam, w.y + row * 20, seam, w.y + row * 20 + 18, C.mortar, 2);
   }
   c.strokeStyle = C.ink;
-  c.lineWidth = 2;
+  c.lineWidth = 3;
   c.strokeRect(w.x, w.y, w.width, w.height);
 
-  for (let i = 0; i < 28; i++) {
+  c.fillStyle = t.grassDark;
+  c.fillRect(0, 551, 1000, 9);
+
+  for (let i = 0; i < 16; i++) {
     const x = (i * 89) % 1000;
     const y = 454 + (i % 4) * 4;
     line(c, x, y, x - 4, y - 8, t.grassDark, 2);
@@ -521,7 +529,7 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
   const active = s.turn === side;
   const cat = side === "cat";
   const style = fighterStyle(side);
-  const hit = s.effects.findLast((e) => e.impact.target === side);
+  const hit = s.effects.findLast((e) => e.impact.target === side && e.age < 0.5);
   const miss =
     s.phase === "impact" &&
     !s.effects.some((e) => e.impact.kind === "target") &&
@@ -535,7 +543,7 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
   const elapsed = s.elapsed + visualOffset;
   const time = reduced ? 0 : s.clock + visualOffset;
   const idle = Math.sin(time * 2.25 + (cat ? 0 : 1.2));
-  const breathe = reduced ? 0 : Math.sin(time * 3.1) * 0.018;
+  const breathe = reduced ? 0 : Math.sin(time * 3.1) * 0.026;
   const recoil = throwing && s.phase === "throwing"
     ? Math.sin(Math.min(1, elapsed / THROW_DURATION) * Math.PI) : 0;
   const pose = throwPose(active ? s.phase : "menu", elapsed, s.power);
@@ -543,17 +551,17 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
 
   c.save();
   c.translate(ARENA.fighters[side].x, ARENA.ground);
-  ellipse(c, 0, 1, 49, 9, C.shadow);
+  ellipse(c, 0, 1, 58, 10, C.shadow);
 
   if (active && s.phase !== "menu" && !s.winner) {
     c.strokeStyle = style.accent;
     c.lineWidth = 3;
     c.beginPath();
-    c.ellipse(0, 2, 51, 12, 0, 0, Math.PI * 2);
+    c.ellipse(0, 2, 59, 13, 0, 0, Math.PI * 2);
     c.stroke();
   }
 
-  c.scale(cat ? 1 : -1, 1);
+  c.scale(cat ? FIGHTER_VISUAL_SCALE : -FIGHTER_VISUAL_SCALE, FIGHTER_VISUAL_SCALE);
   if (!reduced) {
     c.translate(-recoil * 3 - (reaction?.knockback ?? 0), 0);
     c.rotate(
@@ -561,11 +569,11 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
         (reaction?.tilt ?? 0),
     );
     c.scale(
-      (1 + charge * 0.05 - breathe * 0.5) * (reaction?.scaleX ?? 1),
-      (1 - charge * 0.07 + breathe) * (reaction?.scaleY ?? 1),
+      (1 + charge * 0.085 - breathe * 0.5) * (reaction?.scaleX ?? 1),
+      (1 - charge * 0.11 + breathe) * (reaction?.scaleY ?? 1),
     );
-    if (victory) c.translate(0, -Math.abs(Math.sin(time * 7)) * 9);
-    if (miss && !active) c.rotate(Math.sin(elapsed * 15) * 0.018);
+    if (victory) c.translate(0, -Math.abs(Math.sin(time * 6)) * 11);
+    if (miss && !active) c.rotate(Math.sin(elapsed * 15) * 0.028);
   }
 
   if (defeat) {
@@ -575,7 +583,7 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
 
   c.save();
   c.translate(-26, -29);
-  c.rotate(Math.sin(time * 3.2) * 0.16 + charge * 0.12 - recoil * 0.12);
+  c.rotate(Math.sin(time * 3.2) * 0.2 + charge * 0.25 - recoil * 0.22 + (hit ? -0.22 : 0) + (victory ? Math.sin(time * 8) * 0.24 : 0));
   path(
     c,
     cat
@@ -588,13 +596,13 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
   c.save();
   c.translate(-22, -7);
   c.rotate(-idle * 0.025);
-  ellipse(c, 0, 0, 20, 9, style.fur, true);
+  ellipse(c, 0, 0, 23, 11, style.fur, true);
   c.restore();
 
   c.save();
   c.translate(23, -6);
   c.rotate(idle * 0.03);
-  ellipse(c, 0, 0, 22, 9, style.fur, true);
+  ellipse(c, 0, 0, 25, 11, style.fur, true);
   line(c, -3, 0, -3, 4, C.ink, 1.5);
   line(c, 5, 0, 5, 4, C.ink, 1.5);
   c.restore();
@@ -626,20 +634,21 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
   c.restore();
 
   c.save();
-  c.translate(idle * 0.7, -96 + (defeat ? 16 : 0));
-  c.rotate(idle * 0.018 - recoil * 0.03);
+  c.translate(idle * 0.9, -97 + (defeat ? 16 : 0) + (charge ? charge * 2 : 0));
+  c.rotate(idle * 0.023 - recoil * 0.06 + (hit ? -0.03 : 0));
+  c.scale(1.06, 1.07);
 
   if (cat) {
-    const earTwitch = reduced ? 0 : Math.max(0, Math.sin(time * 5.1)) * 2;
+    const earTwitch = reduced ? 0 : Math.max(0, Math.sin(time * 5.1)) * 3 + charge * 3 - (hit ? 5 : 0);
     path(c, `M-35-9L-39-${51 + earTwitch}L-11-32L13-33L36-${51 - earTwitch}L39-10Z`, style.fur);
     path(c, "M-31-32L-32-42L-21-32ZM24-32L31-42L31-30Z", C.pink, C.pink, 0);
   } else {
     c.save();
-    c.rotate(idle * 0.02);
+    c.rotate(idle * 0.04 + charge * 0.12 + (hit ? -0.22 : 0));
     ellipse(c, -36, -13, 18, 31, style.dark, true);
     c.restore();
     c.save();
-    c.rotate(-idle * 0.02);
+    c.rotate(-idle * 0.04 - charge * 0.08 + (hit ? 0.24 : 0));
     ellipse(c, 33, -12, 17, 31, style.dark, true);
     c.restore();
   }
@@ -665,23 +674,27 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
   }
 
   const blink = time % 4.1 > 3.98 || defeat;
+  const expression = defeat ? "defeat" : victory ? "victory" : hit ? "hit" : miss && !active ? "laugh" : throwing ? "throw" : charge > 0 ? "charge" : active && s.phase === "aiming" ? "aim" : "idle";
   const trackingGaze = botState(s) === "chase" && !reduced
     ? botTrackingOffset(s.elapsed, BOT_PROFILES[s.difficulty].delay) * 0.25
     : 0;
   const gaze = active && !s.winner ? 2.5 + trackingGaze : 0;
   for (const x of [-13, 16]) {
-    ellipse(c, x, -10, 12, blink ? 2 : 14, THEMES[currentTheme()].cloud, true);
-    if (!blink) ellipse(c, x + 4 + gaze, -8, 4.5, hit ? 7 : 8, C.ink);
-    line(c, x - 10, -26 + (hit ? -6 : 0), x + 9, -23, C.ink, 3.5);
+    const squint = expression === "charge" || expression === "aim" || expression === "laugh";
+    const closed = blink || expression === "victory" || expression === "laugh";
+    ellipse(c, x, -10, 12, closed ? 2 : squint ? 10 : 14, THEMES[currentTheme()].cloud, true);
+    if (!closed) ellipse(c, x + 4 + gaze, -8 + (expression === "hit" ? -3 : 0), 4.5, expression === "hit" ? 9 : 8, C.ink);
+    const browRaise = expression === "hit" ? -7 : expression === "charge" ? 3 : expression === "defeat" ? 5 : 0;
+    line(c, x - 10, -26 + browRaise, x + 9, -23 + browRaise + (expression === "aim" ? 2 : 0), C.ink, 3.5);
   }
 
   ellipse(c, 7, 13, cat ? 24 : 31, cat ? 15 : 20, style.cream, true);
   path(c, "M-2 5Q9-1 16 5L8 12Z", C.ink, C.ink, 1);
-  if (hit || victory || (miss && !active)) {
-    ellipse(c, 10, 24, 10, hit ? 10 : 7, C.ink);
-    if (!hit) ellipse(c, 12, 27, 7, 3, C.pink);
+  if (["hit", "victory", "laugh", "throw"].includes(expression)) {
+    ellipse(c, 10, 24, expression === "hit" ? 11 : 9, expression === "hit" ? 11 : 7, C.ink);
+    if (expression !== "hit") ellipse(c, 12, 27, 7, 3, C.pink);
   } else {
-    path(c, "M8 12V21Q19 28 27 16", "transparent", C.ink, 2);
+    path(c, expression === "defeat" ? "M8 25Q17 16 26 25" : expression === "charge" ? "M8 18Q17 21 25 17" : "M8 12V21Q19 28 27 16", "transparent", C.ink, 2);
   }
 
   if (cat) {
@@ -708,6 +721,7 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
 
 export class GameRenderer {
   private backgrounds = new Map<ArenaTheme, HTMLCanvasElement>();
+  private camera = { x: 0, y: 0, zoom: 1 };
 
   private backgroundFor(theme: ArenaTheme) {
     const cached = this.backgrounds.get(theme);
@@ -727,20 +741,35 @@ export class GameRenderer {
     return canvas;
   }
 
-  draw(c: Context, s: MatchState, reduced: boolean, lowPower: boolean, visualOffset = 0) {
+  draw(c: Context, s: MatchState, reduced: boolean, lowPower: boolean, visualOffset = 0, frameDelta = 1 / 60) {
     c.save();
     c.lineJoin = "round";
     c.lineCap = "round";
 
     const theme = currentTheme();
     const t = THEMES[theme];
+    const followedFlight = s.flights.find((flight) => !flight.resolved && s.elapsed + visualOffset >= flight.delay);
+    const followPoint = followedFlight
+      ? trajectoryPointAt(followedFlight.result, s.elapsed + visualOffset - followedFlight.delay)
+      : undefined;
+    const target = reduced || lowPower ? cameraTarget() : cameraTarget(followPoint);
+    const ease = s.phase === "menu" || reduced ? 1 : 1 - Math.exp(-Math.min(frameDelta, 0.05) * 8);
+    this.camera.x += (target.x - this.camera.x) * ease;
+    this.camera.y += (target.y - this.camera.y) * ease;
+    this.camera.zoom += (target.zoom - this.camera.zoom) * ease;
     const hit = s.effects.findLast(
-      (e) => e.impact.kind === "target" && e.age < 0.18,
+      (e) => e.impact.kind === "target" && e.age < 0.22,
     );
-    if (hit && !reduced) {
-      const kick = cameraKick(hit.age + visualOffset, hit.impact.damage);
-      c.translate(kick.x, kick.y);
-    }
+    const kick = hit && !reduced ? cameraKick(hit.age + visualOffset, hit.impact.damage) : { x: 0, y: 0 };
+    c.fillStyle = t.skyTop;
+    c.fillRect(0, 0, ARENA.width, ARENA.height);
+    c.fillStyle = t.grass;
+    c.fillRect(0, 430, ARENA.width, 140);
+    c.fillStyle = t.soil;
+    c.fillRect(0, 490, ARENA.width, 150);
+    c.translate(ARENA.width / 2 + this.camera.x + kick.x, ARENA.height / 2 + this.camera.y + kick.y);
+    c.scale(this.camera.zoom, this.camera.zoom);
+    c.translate(-ARENA.width / 2, -ARENA.height / 2);
 
     c.drawImage(this.backgroundFor(theme), 0, 0);
     c.translate(0, -ARENA.cameraTop);
@@ -825,10 +854,18 @@ export class GameRenderer {
 
     for (const effect of s.effects) {
       const { impact } = effect;
-      const age = effect.age + visualOffset;
+      const actualAge = effect.age + visualOffset;
+      const age = impact.kind === "target" ? Math.max(0, actualAge - 0.038) : actualAge;
       const x = Math.max(42, Math.min(958, impact.point.x));
       const y = impact.point.y;
       c.globalAlpha = Math.max(0, 1 - age / 0.8);
+      if (impact.kind === "target" && !reduced) {
+        c.beginPath();
+        c.arc(x, y, 13 + age * 120, 0, Math.PI * 2);
+        c.strokeStyle = t.sun;
+        c.lineWidth = Math.max(0.5, 5 * (1 - age / 0.4));
+        c.stroke();
+      }
       if (!reduced) {
         for (let i = 0; i < (lowPower ? 5 : 10); i++) {
           const a = i * 2.399;
@@ -855,7 +892,7 @@ export class GameRenderer {
               : "PUFF!",
         x,
         y - 32 - (reduced ? 0 : age * 30),
-        24,
+        impact.kind === "target" ? 30 : 24,
       );
       if (impact.damage) {
         text(
