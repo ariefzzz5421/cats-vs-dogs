@@ -1,4 +1,21 @@
-# Rebuild verification — 12 September 2026
+# Arcade setup and roster verification — 30 September 2026
+
+## Current release
+
+- Mandatory Home → Mode → Arena → Fighters → three-item Loadout → Ready → Battle flow. Saved selections remain highlighted, but an arena must be explicitly chosen on every fresh setup. Legacy appearance/difficulty preferences migrate safely.
+- Six distinct arena environments, ten original vector fighters, ten matching normal weapons, ten one-use signatures, and seven selectable tricks. No downloaded game assets, additional rendering framework, or new dependencies.
+- Baseline fixed-step physics, collision geometry, 100 HP, charging, local turns, approximate solo AI, pause, sound, fullscreen and keyboard/pointer input preserved. Signature and item modifiers are centralized; baseline normal-shot trajectories remain unchanged.
+- Automated validation: **33 tests passed**, lint passed, production build passed. Includes 54 baseline shot combinations and 270 signature combinations across angles/power/wind, deterministic results, bounce handling, bounded damage, stock exclusivity, retries, settings validation and legacy migration.
+- Chromium production-build QA: all six arena selections; all ten fighter/signature selections and consumption; all seven tricks. Snack Time restored 77 → 97 HP and consumed its turn. Second Chance allowed one retry only. Charge capped at 100% with MAX POWER feedback.
+- Solo Easy, Normal and Hard completed bot turns and returned control. Local match reached victory, rematch restored 100/100 HP, menu return worked. Pointer and Space throws, pause/resume, tutorial, sound and fullscreen passed.
+- Layouts checked at 1920×1080, 1366×768, 1024×768, 390×844 and 844×390: no horizontal page overflow; throw control remains visible. Short landscape uses a compact side control rail.
+- Emulated mobile touch at 390×844: hold → 81% → release → real flight → damage and next turn. Reduced-motion and low-core rendering tested together; backing-canvas DPR capped at 1.25. This is emulation, not a physical-device benchmark.
+- Browser console: zero errors and warnings during the verification session.
+- Performance: cached arena backgrounds, static thumbnails, 30 FPS menu previews, bounded particles/path cache, imperative charge readout and no per-frame React projectile updates. No claim of measured 60 FPS on physical phones.
+- Evidence: `docs/qa/arcade-home.png`, `arcade-roster.png`, `arcade-battle.png`, `arcade-landscape.png`, `arcade-result.png`.
+- Remaining checks: physical Android/iOS and Safari; extended balance/playtesting of signature combinations. Existing production architecture does not currently include online rooms; this release does not add or remove online networking.
+
+## Historical rebuild verification — 12 September 2026
 
 ## Icon and menu refresh — 13 September 2026
 
