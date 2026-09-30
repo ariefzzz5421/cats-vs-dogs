@@ -1,8 +1,25 @@
-import { ARENA, NAMES, PHYSICS, other } from "./constants";
-import { trajectoryPointAt } from "./ballistics";
+import { ARENA, PHYSICS, other } from "./constants";
+import { simulateShot, trajectoryPointAt } from "./ballistics";
 import { BOT_PROFILES, botState, botTrackingOffset } from "./bot";
-import { cameraKick, cameraTarget, FIGHTER_VISUAL_SCALE, hitMotion, throwPose, THROW_DURATION } from "./presentation";
+import {
+  cameraKick,
+  cameraTarget,
+  FIGHTER_VISUAL_SCALE,
+  hitMotion,
+  throwPose,
+  THROW_DURATION,
+} from "./presentation";
 import type { MatchState, Side } from "./types";
+import { THEMES, type ThemeId as ArenaTheme } from "./themes";
+import {
+  characterFor,
+  characterMotion,
+  CHARACTERS,
+  type CharacterId,
+  type WeaponId,
+} from "./characters";
+import { createMatch } from "./engine";
+import { shotProperties } from "./abilities";
 
 const C = {
   ink: "#273c42",
@@ -31,159 +48,6 @@ const C = {
 };
 
 type Context = CanvasRenderingContext2D;
-type ArenaTheme = "sunny" | "sunset" | "night" | "sakura";
-type FighterStyle = {
-  id: string;
-  fur: string;
-  dark: string;
-  cream: string;
-  accent: string;
-  mark: "tabby" | "mask" | "spot" | "plain";
-};
-
-const THEMES: Record<
-  ArenaTheme,
-  {
-    skyTop: string;
-    skyBottom: string;
-    sun: string;
-    hill: string;
-    grass: string;
-    grassDark: string;
-    soil: string;
-    fence: string;
-    fenceDark: string;
-    house: string;
-    roof: string;
-    window: string;
-    leaf: string;
-    leafLight: string;
-    cloud: string;
-  }
-> = {
-  sunny: {
-    skyTop: "#b9e5eb",
-    skyBottom: "#d9f0e6",
-    sun: "#f8cf61",
-    hill: "#91bba0",
-    grass: "#9ab765",
-    grassDark: "#789653",
-    soil: "#dfbf84",
-    fence: "#d8ae76",
-    fenceDark: "#bc8d59",
-    house: "#e7caab",
-    roof: "#b48e7b",
-    window: "#88b7bf",
-    leaf: "#70996c",
-    leafLight: "#97ba73",
-    cloud: "#fff9e9",
-  },
-  sunset: {
-    skyTop: "#6f5a8f",
-    skyBottom: "#f2b36f",
-    sun: "#ffd46b",
-    hill: "#798b78",
-    grass: "#899b5e",
-    grassDark: "#657646",
-    soil: "#c99a68",
-    fence: "#c89563",
-    fenceDark: "#9b6f4f",
-    house: "#dbb28e",
-    roof: "#8f6b69",
-    window: "#f2c77f",
-    leaf: "#68795f",
-    leafLight: "#8e9a65",
-    cloud: "#f9dfc9",
-  },
-  night: {
-    skyTop: "#16233f",
-    skyBottom: "#334d70",
-    sun: "#f3edcf",
-    hill: "#445e62",
-    grass: "#536f58",
-    grassDark: "#3e5747",
-    soil: "#8d7c67",
-    fence: "#8d795d",
-    fenceDark: "#6d5d4b",
-    house: "#7e7480",
-    roof: "#54495b",
-    window: "#f4cf70",
-    leaf: "#3f5f56",
-    leafLight: "#587566",
-    cloud: "#cbd8df",
-  },
-  sakura: {
-    skyTop: "#ccecf2",
-    skyBottom: "#f6dce5",
-    sun: "#f8d57d",
-    hill: "#9ab9a1",
-    grass: "#a4bf72",
-    grassDark: "#80985b",
-    soil: "#dbc093",
-    fence: "#d7aa81",
-    fenceDark: "#b88465",
-    house: "#ead0b9",
-    roof: "#b98c91",
-    window: "#91bec3",
-    leaf: "#7eaa78",
-    leafLight: "#a4c486",
-    cloud: "#fffaf0",
-  },
-};
-
-const CAT_STYLES: FighterStyle[] = [
-  {
-    id: "ginger",
-    fur: "#efa345",
-    dark: "#c47631",
-    cream: "#fff0d4",
-    accent: C.catTeam,
-    mark: "tabby",
-  },
-  {
-    id: "tuxedo",
-    fur: "#46545c",
-    dark: "#28363c",
-    cream: "#fff5e8",
-    accent: "#7a66c7",
-    mark: "mask",
-  },
-  {
-    id: "snow",
-    fur: "#f4ead9",
-    dark: "#c5a67f",
-    cream: "#fffaf1",
-    accent: "#2d9b87",
-    mark: "spot",
-  },
-];
-
-const DOG_STYLES: FighterStyle[] = [
-  {
-    id: "slate",
-    fur: "#92a5aa",
-    dark: "#647d87",
-    cream: "#fff0d4",
-    accent: C.dogTeam,
-    mark: "plain",
-  },
-  {
-    id: "brown",
-    fur: "#9d6b4f",
-    dark: "#704a39",
-    cream: "#f7dfbd",
-    accent: "#d57942",
-    mark: "spot",
-  },
-  {
-    id: "cream",
-    fur: "#dbc79f",
-    dark: "#9b7e5d",
-    cream: "#fff6df",
-    accent: "#cd5f59",
-    mark: "mask",
-  },
-];
 
 const paths = new Map<string, Path2D>();
 
@@ -261,27 +125,7 @@ function text(
   c.fillText(label, x, y);
 }
 
-function currentTheme(): ArenaTheme {
-  const value = document.documentElement.dataset.arenaTheme;
-  return value && value in THEMES ? (value as ArenaTheme) : "sunny";
-}
-
-function fighterStyle(side: Side) {
-  const requested =
-    side === "cat"
-      ? document.documentElement.dataset.catStyle
-      : document.documentElement.dataset.dogStyle;
-  const styles = side === "cat" ? CAT_STYLES : DOG_STYLES;
-  return styles.find((style) => style.id === requested) ?? styles[0];
-}
-
-function cloud(
-  c: Context,
-  x: number,
-  y: number,
-  scale: number,
-  fill: string,
-) {
+function cloud(c: Context, x: number, y: number, scale: number, fill: string) {
   c.save();
   c.translate(x, y);
   c.scale(scale, scale);
@@ -296,7 +140,7 @@ function cloud(
 }
 
 function backdrop(c: Context, themeId: ArenaTheme) {
-  const t = THEMES[themeId];
+  const t = THEMES[themeId].palette;
   const sky = c.createLinearGradient(0, 0, 0, 420);
   sky.addColorStop(0, t.skyTop);
   sky.addColorStop(1, t.skyBottom);
@@ -311,7 +155,7 @@ function backdrop(c: Context, themeId: ArenaTheme) {
     }
     ellipse(c, 862, 82, 34, 34, t.sun);
     ellipse(c, 875, 70, 30, 30, t.skyTop);
-  } else {
+  } else if (themeId !== "rainy") {
     const sunY = themeId === "sunset" ? 128 : 87;
     ellipse(c, 868, sunY, 37, 37, t.sun);
     for (let i = 0; i < 8; i++) {
@@ -338,6 +182,26 @@ function backdrop(c: Context, themeId: ArenaTheme) {
 
   c.save();
   c.globalAlpha = 0.52;
+  if (
+    THEMES[themeId].environment === "roof" ||
+    THEMES[themeId].environment === "alley"
+  ) {
+    for (let i = 0; i < 9; i++) {
+      const x = i * 132 - 50,
+        y = 160 + ((i * 47) % 130);
+      c.fillStyle = t.house;
+      c.fillRect(x, y, 98, 270);
+      c.fillStyle = t.roof;
+      c.fillRect(x - 6, y, 110, 9);
+      for (let row = 0; row < 4; row++)
+        for (let col = 0; col < 3; col++) {
+          c.fillStyle = t.window;
+          c.fillRect(x + 12 + col * 27, y + 22 + row * 42, 12, 19);
+        }
+      line(c, x + 54, y, x + 54, y - 34, t.fenceDark, 3);
+      line(c, x + 36, y - 28, x + 72, y - 28, t.fenceDark, 2);
+    }
+  }
   for (const [x, y, width] of [
     [-32, 270, 181],
     [911, 257, 159],
@@ -425,9 +289,18 @@ function backdrop(c: Context, themeId: ArenaTheme) {
 
   c.save();
   c.translate(927, 444);
-  c.save(); c.translate(-4, -19); c.rotate(-0.3); c.scale(0.6, 0.6); weapon(c, "dog"); c.restore();
+  c.save();
+  c.translate(-4, -19);
+  c.rotate(-0.3);
+  c.scale(0.6, 0.6);
+  weapon(c, "dog");
+  c.restore();
   path(c, "M-25-14H25L18 0H-18Z", C.dogTeam);
-  c.save(); c.translate(0, -6); c.scale(0.32, 0.32); weapon(c, "dog"); c.restore();
+  c.save();
+  c.translate(0, -6);
+  c.scale(0.32, 0.32);
+  weapon(c, "dog");
+  c.restore();
   c.restore();
 
   c.save();
@@ -450,6 +323,38 @@ function backdrop(c: Context, themeId: ArenaTheme) {
   c.lineWidth = 3;
   c.strokeRect(w.x, w.y, w.width, w.height);
 
+  if (THEMES[themeId].environment === "roof") {
+    c.fillStyle = t.soil;
+    c.fillRect(0, 461, 1000, 90);
+    for (let x = 0; x < 1000; x += 125)
+      line(c, x, 480, x + 70, 551, t.fenceDark, 1);
+    path(c, "M50 469V437H91V469Z", t.fenceDark);
+    path(c, "M910 466V430H949V466Z", t.fenceDark);
+    ellipse(c, 70, 431, 20, 9, t.leaf);
+    ellipse(c, 930, 425, 20, 9, t.leaf);
+  }
+  if (THEMES[themeId].environment === "alley") {
+    c.fillStyle = t.soil;
+    c.fillRect(0, 461, 1000, 90);
+    for (const x of [110, 380, 620, 906]) {
+      ellipse(c, x, 485 + (x % 17), 56, 7, "#c0d4d7");
+      line(c, x - 29, 484 + (x % 17), x + 29, 484 + (x % 17), "#e0ecdf", 2);
+    }
+    for (let x = 0; x < 1000; x += 90)
+      line(c, x, 542, x + 50, 542, t.fenceDark, 2);
+  }
+  if (themeId === "sakura") {
+    path(c, "M75 309L63 261H95L82 309Z", t.fenceDark);
+    ellipse(c, 78, 232, 68, 30, t.leaf);
+    ellipse(c, 105, 213, 42, 32, t.leafLight);
+    path(
+      c,
+      "M650 390V355H724V390M640 353Q686 344 734 353",
+      "transparent",
+      t.fenceDark,
+      5,
+    );
+  }
   c.fillStyle = t.grassDark;
   c.fillRect(0, 551, 1000, 9);
 
@@ -461,8 +366,61 @@ function backdrop(c: Context, themeId: ArenaTheme) {
   }
 }
 
-function weapon(c: Context, side: Side) {
+function weapon(
+  c: Context,
+  side: Side,
+  identity: WeaponId = side === "cat" ? "fishbone" : "bone",
+) {
   c.lineCap = "round";
+  if (identity === "yarn" || identity === "tennis") {
+    ellipse(c, 0, 0, 15, 15, identity === "yarn" ? "#df93aa" : "#c5d678", true);
+    path(
+      c,
+      identity === "yarn"
+        ? "M-13-6Q8-15 13 6M-13 2Q0-10 14-2M-10 10Q5-1 14 5"
+        : "M-10-11Q4 0-10 11M10-11Q-4 0 10 11",
+      "transparent",
+      "#fff0d4",
+      2,
+    );
+    return;
+  }
+  if (identity === "sardine" || identity === "tag") {
+    path(
+      c,
+      "M-17-8Q-22 0-17 8H15Q24 0 15-8Z",
+      identity === "tag" ? "#aabfc6" : "#91bfbc",
+    );
+    line(c, -10, -4, 10, -4, "#fff9e9", 2);
+    ellipse(c, 12, 0, 2, 2, C.ink);
+    return;
+  }
+  if (identity === "mouse") {
+    ellipse(c, 0, 0, 16, 10, "#b1a3c6", true);
+    ellipse(c, -6, -10, 6, 6, "#d8c9df", true);
+    line(c, -16, 0, -26, 6, "#b1a3c6", 3);
+    ellipse(c, 9, -2, 2, 2, C.ink);
+    return;
+  }
+  if (identity === "duck") {
+    ellipse(c, 0, 3, 17, 11, C.sun, true);
+    ellipse(c, 8, -9, 10, 10, C.sun, true);
+    path(c, "M15-10L26-6L15-3Z", C.dogTeam);
+    ellipse(c, 10, -12, 2, 2, C.ink);
+    return;
+  }
+  if (identity === "anchor") {
+    path(
+      c,
+      "M-13-4H13M0-15V14M-20 4Q0 29 20 4M-20 4L-20 12M20 4L20 12",
+      "transparent",
+      "#789aa8",
+      6,
+    );
+    ellipse(c, 0, -18, 5, 5, "#fff0d4", true);
+    return;
+  }
+  if (identity === "bigbone") c.scale(1.18, 1.18);
   if (side === "cat") {
     line(c, -17, 0, 17, 0, C.ink, 7);
     line(c, -17, 0, 17, 0, "#fff0d4", 4);
@@ -484,52 +442,99 @@ function weapon(c: Context, side: Side) {
   }
 }
 
+let hintKey = "";
+let hint: ReturnType<typeof simulateShot> | null = null;
 function drawAimGuide(c: Context, s: MatchState, reduced: boolean) {
-  if (s.selected === "heal") return;
-  const style = fighterStyle(s.turn);
-  const origin = ARENA.origins[s.turn];
-  const tracking = botState(s) === "chase" && !reduced
-    ? botTrackingOffset(s.elapsed, BOT_PROFILES[s.difficulty].delay)
-    : 0;
-  const angle = (s.angle + tracking) * Math.PI / 180;
-  const direction = s.turn === "cat" ? 1 : -1;
+  const style = characterFor(s.turn, s.setup.fighters);
+  const power = s.phase === "charging" ? Math.round(s.power / 3) * 3 : 55;
+  const key = [
+    s.turn,
+    s.angle,
+    power,
+    s.wind,
+    s.selected,
+    s.signatureSelected,
+    style.id,
+  ].join("|");
+  if (key !== hintKey) {
+    hintKey = key;
+    hint = simulateShot({
+      side: s.turn,
+      angle: s.angle,
+      power,
+      wind: s.wind,
+      item: s.selected ?? undefined,
+      character: style.id,
+      signature: s.signatureSelected,
+    });
+  }
+  if (!hint) return;
+  const properties = shotProperties(hint.input);
+  const duration = Math.min(hint.impact.point.time, properties.previewDuration);
   c.save();
-  for (let i = 1; i <= 4; i++) {
-    c.globalAlpha = 0.7 - i * 0.12;
-    ellipse(c, origin.x + direction * Math.cos(angle) * i * 13,
-      origin.y - Math.sin(angle) * i * 13, reduced ? 2 : 2.5, 2.5, style.accent);
+  for (let i = 1; i <= 10; i++) {
+    const point = trajectoryPointAt(hint, (duration * i) / 10);
+    c.globalAlpha = 0.8 * (1 - i / 12);
+    ellipse(
+      c,
+      point.x,
+      point.y,
+      reduced ? 2 : properties.previewRadius,
+      properties.previewRadius,
+      style.accent,
+    );
   }
   c.restore();
 }
-
 function chargeDial(c: Context, s: MatchState, visualOffset: number) {
   if (!["aiming", "charging", "throwing"].includes(s.phase)) return;
   const x = ARENA.fighters[s.turn].x;
-  const y = ARENA.ground - 162;
+  const y = ARENA.ground - 198;
   const charging = s.phase !== "aiming";
-  const visualPower = s.phase === "charging"
-    ? Math.min(PHYSICS.maxPower, s.power + PHYSICS.chargeRate * visualOffset)
-    : s.power;
+  const visualPower =
+    s.phase === "charging"
+      ? Math.min(PHYSICS.maxPower, s.power + PHYSICS.chargeRate * visualOffset)
+      : s.power;
   c.save();
   c.lineWidth = 12;
   c.strokeStyle = C.ink;
-  c.beginPath(); c.arc(x, y, 57, Math.PI * 1.12, Math.PI * 1.88); c.stroke();
+  c.beginPath();
+  c.arc(x, y, 57, Math.PI * 1.12, Math.PI * 1.88);
+  c.stroke();
   c.lineWidth = 7;
-  c.strokeStyle = "#fff9e9"; c.stroke();
+  c.strokeStyle = "#fff9e9";
+  c.stroke();
   if (charging) {
     c.strokeStyle = s.power > 85 ? C.dogTeam : C.sun;
-    c.beginPath(); c.arc(x, y, 57, Math.PI * 1.12, Math.PI * (1.12 + 0.76 * visualPower / 100)); c.stroke();
+    c.beginPath();
+    c.arc(
+      x,
+      y,
+      57,
+      Math.PI * 1.12,
+      Math.PI * (1.12 + (0.76 * visualPower) / 100),
+    );
+    c.stroke();
   }
   text(c, charging ? `${Math.round(visualPower)}%` : "HOLD", x, y - 19, 20);
   text(c, charging ? "RELEASE!" : "TO THROW", x, y - 2, 11);
   c.restore();
 }
 
-function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visualOffset: number) {
+function fighter(
+  c: Context,
+  s: MatchState,
+  side: Side,
+  reduced: boolean,
+  visualOffset: number,
+) {
   const active = s.turn === side;
   const cat = side === "cat";
-  const style = fighterStyle(side);
-  const hit = s.effects.findLast((e) => e.impact.target === side && e.age < 0.5);
+  const style = characterFor(side, s.setup.fighters);
+  const motion = characterMotion(style.id);
+  const hit = s.effects.findLast(
+    (e) => e.impact.target === side && e.age < 0.5,
+  );
   const miss =
     s.phase === "impact" &&
     !s.effects.some((e) => e.impact.kind === "target") &&
@@ -541,13 +546,20 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
     active &&
     (s.phase === "throwing" || (s.phase === "flying" && s.elapsed < 0.25));
   const elapsed = s.elapsed + visualOffset;
-  const time = reduced ? 0 : s.clock + visualOffset;
-  const idle = Math.sin(time * 2.25 + (cat ? 0 : 1.2));
+  const time = reduced
+    ? 0
+    : (s.clock + visualOffset) * (s.health[side] < 30 ? 0.75 : 1);
+  const idle = Math.sin(time * motion.idleRate + (cat ? 0 : 1.2));
   const breathe = reduced ? 0 : Math.sin(time * 3.1) * 0.026;
-  const recoil = throwing && s.phase === "throwing"
-    ? Math.sin(Math.min(1, elapsed / THROW_DURATION) * Math.PI) : 0;
+  const recoil =
+    throwing && s.phase === "throwing"
+      ? Math.sin(Math.min(1, elapsed / THROW_DURATION) * Math.PI)
+      : 0;
   const pose = throwPose(active ? s.phase : "menu", elapsed, s.power);
-  const reaction = hit && !reduced ? hitMotion(hit.age + visualOffset, hit.impact.damage) : null;
+  const reaction =
+    hit && !reduced
+      ? hitMotion(hit.age + visualOffset, hit.impact.damage)
+      : null;
 
   c.save();
   c.translate(ARENA.fighters[side].x, ARENA.ground);
@@ -561,18 +573,42 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
     c.stroke();
   }
 
-  c.scale(cat ? FIGHTER_VISUAL_SCALE : -FIGHTER_VISUAL_SCALE, FIGHTER_VISUAL_SCALE);
+  c.scale(
+    cat ? FIGHTER_VISUAL_SCALE : -FIGHTER_VISUAL_SCALE,
+    FIGHTER_VISUAL_SCALE,
+  );
+  c.scale(
+    style.shape === "heavy"
+      ? 1.13
+      : style.shape === "sleek"
+        ? 0.88
+        : style.shape === "small"
+          ? cat
+            ? 0.86
+            : 1.06
+          : 1,
+    style.shape === "sleek"
+      ? 1.07
+      : style.shape === "small"
+        ? cat
+          ? 0.92
+          : 0.82
+        : 1,
+  );
   if (!reduced) {
     c.translate(-recoil * 3 - (reaction?.knockback ?? 0), 0);
-    c.rotate(
-      pose.lean +
-        (reaction?.tilt ?? 0),
-    );
+    c.rotate(pose.lean + (reaction?.tilt ?? 0));
     c.scale(
       (1 + charge * 0.085 - breathe * 0.5) * (reaction?.scaleX ?? 1),
       (1 - charge * 0.11 + breathe) * (reaction?.scaleY ?? 1),
     );
-    if (victory) c.translate(0, -Math.abs(Math.sin(time * 6)) * 11);
+    if (victory) {
+      c.translate(
+        0,
+        -Math.abs(Math.sin(time * motion.celebrateRate)) * motion.celebrateHop,
+      );
+      c.rotate(Math.sin(time * motion.celebrateRate) * motion.celebrateLean);
+    }
     if (miss && !active) c.rotate(Math.sin(elapsed * 15) * 0.028);
   }
 
@@ -583,7 +619,13 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
 
   c.save();
   c.translate(-26, -29);
-  c.rotate(Math.sin(time * 3.2) * 0.2 + charge * 0.25 - recoil * 0.22 + (hit ? -0.22 : 0) + (victory ? Math.sin(time * 8) * 0.24 : 0));
+  c.rotate(
+    Math.sin(time * motion.tailRate) * 0.2 +
+      charge * 0.25 -
+      recoil * 0.22 +
+      (hit ? -0.22 : 0) +
+      (victory ? Math.sin(time * 8) * 0.24 : 0),
+  );
   path(
     c,
     cat
@@ -607,6 +649,14 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
   line(c, 5, 0, 5, 4, C.ink, 1.5);
   c.restore();
 
+  if (style.accessory === "cape")
+    path(c, "M-20-70Q-63-64-53-18L-24-29Z", style.accent);
+  if (style.shape === "fluffy")
+    path(
+      c,
+      "M-30-69L-42-55L-33-50L-40-36L-30-30L-35-14L-19-13H21L36-18L28-30L40-42L29-47L36-60L25-66Z",
+      style.fur,
+    );
   ellipse(c, 0, -43, cat ? 32 : 39, 44, style.fur, true);
   ellipse(c, 7, -40, 20, 27, style.cream);
 
@@ -627,9 +677,13 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
     s.phase === "menu"
   ) {
     c.translate(5, -43);
-    c.rotate(-0.4 - charge * 0.06);
+    c.rotate(
+      -0.4 -
+        charge * 0.06 +
+        (charge > 0.9 && !reduced ? Math.sin(time * 75) * 0.05 : 0),
+    );
     c.scale(0.65, 0.65);
-    weapon(c, side);
+    weapon(c, side, style.weapon);
   }
   c.restore();
 
@@ -638,9 +692,15 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
   c.rotate(idle * 0.023 - recoil * 0.06 + (hit ? -0.03 : 0));
   c.scale(1.06, 1.07);
 
-  if (cat) {
-    const earTwitch = reduced ? 0 : Math.max(0, Math.sin(time * 5.1)) * 3 + charge * 3 - (hit ? 5 : 0);
-    path(c, `M-35-9L-39-${51 + earTwitch}L-11-32L13-33L36-${51 - earTwitch}L39-10Z`, style.fur);
+  if (cat || style.shape === "pointed" || style.shape === "small") {
+    const earTwitch = reduced
+      ? 0
+      : Math.max(0, Math.sin(time * 5.1)) * 3 + charge * 3 - (hit ? 5 : 0);
+    path(
+      c,
+      `M-35-9L-39-${51 + earTwitch}L-11-32L13-33L36-${51 - earTwitch}L39-10Z`,
+      style.fur,
+    );
     path(c, "M-31-32L-32-42L-21-32ZM24-32L31-42L31-30Z", C.pink, C.pink, 0);
   } else {
     c.save();
@@ -660,41 +720,105 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
     line(c, -35, 0, -26, 4, style.dark, 4);
     line(c, -35, 9, -26, 12, style.dark, 4);
   } else if (style.mark === "mask") {
-    path(c, "M-37-16Q-18-35-2-18Q17-35 38-15Q29 0 11 3Q-8-1-27 4Z", style.dark, style.dark, 0);
+    path(
+      c,
+      "M-37-16Q-18-35-2-18Q17-35 38-15Q29 0 11 3Q-8-1-27 4Z",
+      style.dark,
+      style.dark,
+      0,
+    );
   } else if (style.mark === "spot") {
     ellipse(c, -20, -18, 15, 10, style.dark);
     ellipse(c, 28, 3, 9, 7, style.dark);
   }
 
   if (s.health[side] <= 60) {
-    c.save(); c.translate(-24, -29); c.rotate(-0.3);
+    c.save();
+    c.translate(-24, -29);
+    c.rotate(-0.3);
     path(c, "M-11-5H11V5H-11Z", "#f7dbc2", C.ink, 1);
     line(c, -3, -3, 3, 3, C.brick, 2);
     c.restore();
   }
 
   const blink = time % 4.1 > 3.98 || defeat;
-  const expression = defeat ? "defeat" : victory ? "victory" : hit ? "hit" : miss && !active ? "laugh" : throwing ? "throw" : charge > 0 ? "charge" : active && s.phase === "aiming" ? "aim" : "idle";
-  const trackingGaze = botState(s) === "chase" && !reduced
-    ? botTrackingOffset(s.elapsed, BOT_PROFILES[s.difficulty].delay) * 0.25
-    : 0;
+  const expression = defeat
+    ? "defeat"
+    : victory
+      ? "victory"
+      : hit
+        ? "hit"
+        : miss && !active
+          ? "laugh"
+          : throwing
+            ? "throw"
+            : charge > 0
+              ? "charge"
+              : active && s.phase === "aiming"
+                ? "aim"
+                : "idle";
+  const trackingGaze =
+    botState(s) === "chase" && !reduced
+      ? botTrackingOffset(s.elapsed, BOT_PROFILES[s.difficulty].delay) * 0.25
+      : 0;
   const gaze = active && !s.winner ? 2.5 + trackingGaze : 0;
   for (const x of [-13, 16]) {
-    const squint = expression === "charge" || expression === "aim" || expression === "laugh";
+    const squint =
+      expression === "charge" || expression === "aim" || expression === "laugh";
     const closed = blink || expression === "victory" || expression === "laugh";
-    ellipse(c, x, -10, 12, closed ? 2 : squint ? 10 : 14, THEMES[currentTheme()].cloud, true);
-    if (!closed) ellipse(c, x + 4 + gaze, -8 + (expression === "hit" ? -3 : 0), 4.5, expression === "hit" ? 9 : 8, C.ink);
-    const browRaise = expression === "hit" ? -7 : expression === "charge" ? 3 : expression === "defeat" ? 5 : 0;
-    line(c, x - 10, -26 + browRaise, x + 9, -23 + browRaise + (expression === "aim" ? 2 : 0), C.ink, 3.5);
+    ellipse(c, x, -10, 12, closed ? 2 : squint ? 10 : 14, "#fff9e9", true);
+    if (!closed)
+      ellipse(
+        c,
+        x + 4 + gaze,
+        -8 + (expression === "hit" ? -3 : 0),
+        4.5,
+        expression === "hit" ? 9 : 8,
+        C.ink,
+      );
+    const browRaise =
+      expression === "hit"
+        ? -7
+        : expression === "charge"
+          ? 3
+          : expression === "defeat"
+            ? 5
+            : 0;
+    line(
+      c,
+      x - 10,
+      -26 + browRaise,
+      x + 9,
+      -23 + browRaise + (expression === "aim" ? 2 : 0),
+      C.ink,
+      3.5,
+    );
   }
 
   ellipse(c, 7, 13, cat ? 24 : 31, cat ? 15 : 20, style.cream, true);
   path(c, "M-2 5Q9-1 16 5L8 12Z", C.ink, C.ink, 1);
   if (["hit", "victory", "laugh", "throw"].includes(expression)) {
-    ellipse(c, 10, 24, expression === "hit" ? 11 : 9, expression === "hit" ? 11 : 7, C.ink);
+    ellipse(
+      c,
+      10,
+      24,
+      expression === "hit" ? 11 : 9,
+      expression === "hit" ? 11 : 7,
+      C.ink,
+    );
     if (expression !== "hit") ellipse(c, 12, 27, 7, 3, C.pink);
   } else {
-    path(c, expression === "defeat" ? "M8 25Q17 16 26 25" : expression === "charge" ? "M8 18Q17 21 25 17" : "M8 12V21Q19 28 27 16", "transparent", C.ink, 2);
+    path(
+      c,
+      expression === "defeat"
+        ? "M8 25Q17 16 26 25"
+        : expression === "charge"
+          ? "M8 18Q17 21 25 17"
+          : "M8 12V21Q19 28 27 16",
+      "transparent",
+      C.ink,
+      2,
+    );
   }
 
   if (cat) {
@@ -716,6 +840,23 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
     2,
   );
   if (!cat) ellipse(c, 10, -55, 7, 8, C.sun, true);
+  if (style.accessory === "pirate") {
+    path(c, "M-37-130Q-24-154 0-140Q25-154 38-130L29-124H-27Z", C.ink);
+    line(c, -35, -116, 30, -88, C.ink, 3);
+    ellipse(c, -16, -107, 12, 12, C.ink);
+    text(c, "×", 0, -137, 16, "#fff9e9");
+  }
+  if (style.accessory === "goggles") {
+    ellipse(c, -15, -116, 15, 9, "#96d3da", true);
+    ellipse(c, 17, -116, 15, 9, "#96d3da", true);
+    line(c, -1, -116, 3, -116, C.ink, 3);
+  }
+  if (style.accessory === "bow")
+    path(c, "M-14-68L-24-80L-24-57L-12-66L0-78V-56Z", style.accent);
+  if (style.accessory === "harness") {
+    line(c, -25, -60, 21, -16, style.accent, 8);
+    line(c, 25, -60, -21, -16, style.accent, 8);
+  }
   c.restore();
 }
 
@@ -732,7 +873,7 @@ export class GameRenderer {
     canvas.height = ARENA.height;
     const context = canvas.getContext("2d");
     if (context) {
-      context.fillStyle = THEMES[theme].skyTop;
+      context.fillStyle = THEMES[theme].palette.skyTop;
       context.fillRect(0, 0, ARENA.width, ARENA.height);
       context.translate(0, -ARENA.cameraTop);
       backdrop(context, theme);
@@ -741,33 +882,56 @@ export class GameRenderer {
     return canvas;
   }
 
-  draw(c: Context, s: MatchState, reduced: boolean, lowPower: boolean, visualOffset = 0, frameDelta = 1 / 60) {
+  draw(
+    c: Context,
+    s: MatchState,
+    reduced: boolean,
+    lowPower: boolean,
+    visualOffset = 0,
+    frameDelta = 1 / 60,
+    showFighters = true,
+  ) {
     c.save();
     c.lineJoin = "round";
     c.lineCap = "round";
 
-    const theme = currentTheme();
-    const t = THEMES[theme];
-    const followedFlight = s.flights.find((flight) => !flight.resolved && s.elapsed + visualOffset >= flight.delay);
+    const theme = s.setup.theme;
+    const t = THEMES[theme].palette;
+    const followedFlight = s.flights.find(
+      (flight) => !flight.resolved && s.elapsed + visualOffset >= flight.delay,
+    );
     const followPoint = followedFlight
-      ? trajectoryPointAt(followedFlight.result, s.elapsed + visualOffset - followedFlight.delay)
+      ? trajectoryPointAt(
+          followedFlight.result,
+          s.elapsed + visualOffset - followedFlight.delay,
+        )
       : undefined;
-    const target = reduced || lowPower ? cameraTarget() : cameraTarget(followPoint);
-    const ease = s.phase === "menu" || reduced ? 1 : 1 - Math.exp(-Math.min(frameDelta, 0.05) * 8);
+    const target =
+      reduced || lowPower ? cameraTarget() : cameraTarget(followPoint);
+    const ease =
+      s.phase === "menu" || reduced
+        ? 1
+        : 1 - Math.exp(-Math.min(frameDelta, 0.05) * 8);
     this.camera.x += (target.x - this.camera.x) * ease;
     this.camera.y += (target.y - this.camera.y) * ease;
     this.camera.zoom += (target.zoom - this.camera.zoom) * ease;
     const hit = s.effects.findLast(
       (e) => e.impact.kind === "target" && e.age < 0.22,
     );
-    const kick = hit && !reduced ? cameraKick(hit.age + visualOffset, hit.impact.damage) : { x: 0, y: 0 };
+    const kick =
+      hit && !reduced
+        ? cameraKick(hit.age + visualOffset, hit.impact.damage)
+        : { x: 0, y: 0 };
     c.fillStyle = t.skyTop;
     c.fillRect(0, 0, ARENA.width, ARENA.height);
     c.fillStyle = t.grass;
     c.fillRect(0, 430, ARENA.width, 140);
     c.fillStyle = t.soil;
     c.fillRect(0, 490, ARENA.width, 150);
-    c.translate(ARENA.width / 2 + this.camera.x + kick.x, ARENA.height / 2 + this.camera.y + kick.y);
+    c.translate(
+      ARENA.width / 2 + this.camera.x + kick.x,
+      ARENA.height / 2 + this.camera.y + kick.y,
+    );
     c.scale(this.camera.zoom, this.camera.zoom);
     c.translate(-ARENA.width / 2, -ARENA.height / 2);
 
@@ -790,19 +954,31 @@ export class GameRenderer {
       false,
     );
 
-    fighter(c, s, "cat", reduced, visualOffset);
-    fighter(c, s, "dog", reduced, visualOffset);
-    chargeDial(c, s, visualOffset);
+    if (showFighters) {
+      fighter(c, s, "cat", reduced, visualOffset);
+      fighter(c, s, "dog", reduced, visualOffset);
+      chargeDial(c, s, visualOffset);
+    }
 
     for (const side of ["cat", "dog"] as const) {
-      const reaction = s.effects.findLast((effect) => effect.impact.target === side);
+      const reaction = s.effects.findLast(
+        (effect) => effect.impact.target === side,
+      );
       if (!reaction) continue;
       c.save();
       c.globalAlpha = Math.max(0, 1 - (reaction.age + visualOffset) / 0.8);
       for (let i = 0; i < 3; i++) {
-        const a = i * Math.PI * 2 / 3 + (reduced ? 0 : (reaction.age + visualOffset) * 8);
-        text(c, "✦", ARENA.fighters[side].x + Math.cos(a) * 42,
-          ARENA.ground - 167 + Math.sin(a) * 10, 23, C.sun);
+        const a =
+          (i * Math.PI * 2) / 3 +
+          (reduced ? 0 : (reaction.age + visualOffset) * 8);
+        text(
+          c,
+          "✦",
+          ARENA.fighters[side].x + Math.cos(a) * 42,
+          ARENA.ground - 167 + Math.sin(a) * 10,
+          23,
+          C.sun,
+        );
       }
       c.restore();
     }
@@ -811,11 +987,11 @@ export class GameRenderer {
       drawAimGuide(c, s, reduced);
       text(
         c,
-        NAMES[s.turn],
+        characterFor(s.turn, s.setup.fighters).name,
         ARENA.fighters[s.turn].x,
         499,
         17,
-        fighterStyle(s.turn).accent,
+        characterFor(s.turn, s.setup.fighters).accent,
       );
     }
 
@@ -823,7 +999,10 @@ export class GameRenderer {
       const elapsed = s.elapsed + visualOffset - flight.delay;
       if (elapsed < 0 || flight.resolved) continue;
       const point = trajectoryPointAt(flight.result, elapsed);
-      const projectileStyle = fighterStyle(flight.result.input.side);
+      const projectileStyle = characterFor(
+        flight.result.input.side,
+        s.setup.fighters,
+      );
 
       if (!reduced) {
         c.save();
@@ -848,21 +1027,25 @@ export class GameRenderer {
       c.translate(point.x, point.y);
       c.rotate(Math.atan2(point.vy, point.vx) + elapsed * 7);
       c.scale(0.7, 0.7);
-      weapon(c, flight.result.input.side);
+      weapon(c, flight.result.input.side, projectileStyle.weapon);
       c.restore();
     }
 
     for (const effect of s.effects) {
       const { impact } = effect;
+      const impactFighter = impact.character
+        ? CHARACTERS[impact.character]
+        : undefined;
       const actualAge = effect.age + visualOffset;
-      const age = impact.kind === "target" ? Math.max(0, actualAge - 0.038) : actualAge;
+      const age =
+        impact.kind === "target" ? Math.max(0, actualAge - 0.038) : actualAge;
       const x = Math.max(42, Math.min(958, impact.point.x));
       const y = impact.point.y;
       c.globalAlpha = Math.max(0, 1 - age / 0.8);
       if (impact.kind === "target" && !reduced) {
         c.beginPath();
         c.arc(x, y, 13 + age * 120, 0, Math.PI * 2);
-        c.strokeStyle = t.sun;
+        c.strokeStyle = impactFighter?.accent ?? t.sun;
         c.lineWidth = Math.max(0.5, 5 * (1 - age / 0.4));
         c.stroke();
       }
@@ -879,6 +1062,14 @@ export class GameRenderer {
             3,
             impact.kind === "target" ? t.sun : C.brick,
           );
+          if (impact.signature && impactFighter && i % 2 === 0) {
+            c.save();
+            c.translate(px, py);
+            c.rotate(a + age * 5);
+            c.scale(0.2, 0.2);
+            weapon(c, impactFighter.side, impactFighter.weapon);
+            c.restore();
+          }
         }
       }
       text(
@@ -930,6 +1121,81 @@ export class GameRenderer {
       }
     }
 
+    if (!reduced && theme === "night") {
+      for (let i = 0; i < (lowPower ? 4 : 10); i++) {
+        c.globalAlpha = 0.3 + 0.4 * Math.abs(Math.sin(s.clock + i));
+        ellipse(
+          c,
+          80 + i * 87 + Math.sin(s.clock * 0.7 + i) * 8,
+          270 + ((i * 43) % 155),
+          2,
+          2,
+          "#f4dc85",
+        );
+      }
+      c.globalAlpha = 1;
+    }
+    if (!reduced && theme === "rainy") {
+      c.globalAlpha = 0.42;
+      for (let i = 0; i < (lowPower ? 15 : 45); i++) {
+        const x = (i * 71 + s.clock * 42) % 1000,
+          y = (i * 137 + s.clock * 330) % 550;
+        line(c, x, y, x + 5, y + 14, "#eef5ed", 1.4);
+      }
+      for (let i = 0; i < 4; i++) {
+        c.beginPath();
+        c.ellipse(
+          110 + i * 245,
+          491 + ((i * 7) % 17),
+          4 + ((s.clock * 14 + i * 7) % 24),
+          2,
+          0,
+          0,
+          Math.PI * 2,
+        );
+        c.strokeStyle = "#dce7e2";
+        c.lineWidth = 1;
+        c.stroke();
+      }
+      c.globalAlpha = 1;
+    }
+    if (!reduced && (theme === "sunset" || theme === "rooftop")) {
+      const x = ((s.clock * 18) % 1250) - 100;
+      path(c, `M${x} 150q8-9 16 0q8-9 16 0`, "transparent", t.roof, 2, false);
+    }
     c.restore();
   }
+}
+/** Shared art for setup, portraits and results. No raster dependency or art mismatch. */
+export function drawCharacterPreview(
+  c: Context,
+  id: CharacterId,
+  time = 0,
+  portrait = false,
+  victory = false,
+) {
+  const s = createMatch("local");
+  const character = CHARACTERS[id];
+  s.setup.fighters[character.side] = id;
+  s.clock = time;
+  if (victory) {
+    s.winner = character.side;
+    s.phase = "gameOver";
+  }
+  c.save();
+  c.translate(150, portrait ? 330 : 238);
+  const scale = portrait ? 1.6 : 1.12;
+  c.scale(character.side === "dog" ? -scale : scale, scale);
+  c.translate(-ARENA.fighters[character.side].x, -ARENA.ground);
+  fighter(c, s, character.side, time === 0, 0);
+  c.restore();
+}
+export function drawWeaponPreview(c: Context, id: CharacterId) {
+  const fighter = CHARACTERS[id];
+  c.save();
+  c.translate(32, 32);
+  c.rotate(-0.3);
+  c.scale(0.95, 0.95);
+  weapon(c, fighter.side, fighter.weapon);
+  c.restore();
 }

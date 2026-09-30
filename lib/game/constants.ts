@@ -48,6 +48,9 @@ export const ITEMS: Record<
     symbol: "+",
     description: "Restore 20 HP instead of throwing. One use.",
   },
+  curve: { name: "Curve Shot", symbol: "", description: "Forward-curving throw. One use." },
+  retry: { name: "Second Chance", symbol: "", description: "One reduced-power retry after a miss." },
+  lucky: { name: "Lucky Paw / Bone", symbol: "", description: "Small speed and impact boost." },
 };
 export const other = (side: Side): Side => (side === "cat" ? "dog" : "cat");
 export const clamp = (n: number, min: number, max: number) =>

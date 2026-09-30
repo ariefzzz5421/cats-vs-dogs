@@ -224,7 +224,7 @@ test("solo bot cycles chase, attack, recover with unchanged shot physics", () =>
   until("recover");
   assert.equal(s.flights.length, 1);
   assert.deepEqual(s.flights[0].result.input, {
-    side: "dog", angle: s.angle, power: s.botPower, wind: s.wind, item: undefined,
+    side: "dog", angle: s.angle, power: s.botPower, wind: s.wind, item: undefined, character: "major", signature: false,
   });
   assert.equal(s.flights[0].result.impact.kind, simulateShot(s.flights[0].result.input).impact.kind);
   until(null);
