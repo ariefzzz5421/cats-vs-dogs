@@ -1,5 +1,5 @@
 import { simulateShot, makeDeterministicWind } from "./ballistics";
-import { BOT_PROFILES, chooseBotShot, freshBot, learnFromShot } from "./bot";
+import { BOT_PROFILES, botState, chooseBotShot, freshBot, learnFromShot } from "./bot";
 import { NAMES, PHYSICS, clamp, other } from "./constants";
 import { THROW_DURATION } from "./presentation";
 import type { Difficulty, GameMode, Item, MatchState, Phase } from "./types";
@@ -104,7 +104,7 @@ function launch(s: MatchState) {
       resolved: false,
     });
   s.selected = null;
-  phase(s, "flying", "Watch the wind…");
+  phase(s, "flying", botState(s) === "attack" ? "Major Bark watches the landing…" : "Watch the wind…");
 }
 /** One owned state, no React, browser globals, timers, or renderer callbacks. */
 export function advance(s: MatchState, delta: number) {
@@ -116,9 +116,7 @@ export function advance(s: MatchState, delta: number) {
   if (s.phase === "starting" && s.elapsed >= 0.65)
     phase(s, "aiming", `${NAMES[s.turn]} · Hold to throw`);
   else if (
-    s.phase === "aiming" &&
-    s.mode === "solo" &&
-    s.turn === "dog" &&
+    botState(s) === "chase" &&
     s.elapsed >= BOT_PROFILES[s.difficulty].delay
   ) {
     if (s.health.dog <= 55 && s.stock.dog.heal && s.difficulty !== "easy") {
@@ -148,7 +146,7 @@ export function advance(s: MatchState, delta: number) {
     phase(s, "charging", "Major Bark sizes up the throw…");
   } else if (s.phase === "charging") {
     s.power = Math.min(100, s.power + PHYSICS.chargeRate * dt);
-    if (s.mode === "solo" && s.turn === "dog" && s.power >= s.botPower) {
+    if (botState(s) === "attack" && s.power >= s.botPower) {
       s.power = s.botPower;
       phase(s, "throwing", "Major Bark throws!");
     }
@@ -176,7 +174,7 @@ export function advance(s: MatchState, delta: number) {
             : impact.kind === "ground"
               ? "PUFF! A little more… or less?"
               : "Out of the yard!";
-      if (s.turn === "dog" && s.mode === "solo")
+      if (botState(s) === "recover")
         s.bot = learnFromShot(s.bot, flight.result, s.difficulty);
     }
     if (s.flights.every((f) => f.resolved)) {
@@ -195,5 +193,6 @@ export function advance(s: MatchState, delta: number) {
     s.angle = 55;
     s.power = 5;
     phase(s, "aiming", `${NAMES[s.turn]} · Hold to throw`);
+    if (botState(s) === "chase") s.message = "Major Bark tracks the cat…";
   }
 }
