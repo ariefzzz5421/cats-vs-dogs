@@ -18,7 +18,7 @@ import {
   selectItem,
   togglePause,
 } from "../lib/game/engine";
-import { chooseBotShot, freshBot, learnFromShot } from "../lib/game/bot";
+import { BOT_PROFILES, botState, botTrackingOffset, chooseBotShot, freshBot, learnFromShot } from "../lib/game/bot";
 import type { MatchState, ShotInput } from "../lib/game/types";
 const shot = (p: Partial<ShotInput> = {}) =>
   simulateShot({ side: "cat", angle: 55, power: 75, wind: 0, ...p });
@@ -200,6 +200,47 @@ test("Solo AI completes turns on all difficulties with same collision engine", (
     assert.equal(s.turnIndex, 2);
     assert.equal(s.phase, "aiming");
   }
+});
+
+test("solo bot cycles chase, attack, recover with unchanged shot physics", () => {
+  const s = createMatch("solo", "normal", 12);
+  assert.equal(botState(s), null);
+  startMatch(s);
+  step(s, 0.7);
+  fire(s, 5);
+  const until = (state: ReturnType<typeof botState>) => {
+    for (let i = 0; i < 1200 && botState(s) !== state; i++) advance(s, 1 / 120);
+    assert.equal(botState(s), state);
+  };
+  until("chase");
+  assert.equal(s.message, "Major Bark tracks the cat…");
+  assert.equal(s.angle, 55);
+  assert.equal(s.power, 5);
+  step(s, BOT_PROFILES.normal.delay / 2);
+  assert.equal(botState(s), "chase");
+  assert.equal(s.angle, 55, "tracking motion must not change aim input");
+  until("attack");
+  assert.equal(s.angle, chooseBotShot(s.bot, s.wind, s.difficulty, s.seed + s.turnIndex * 331).angle);
+  until("recover");
+  assert.equal(s.flights.length, 1);
+  assert.deepEqual(s.flights[0].result.input, {
+    side: "dog", angle: s.angle, power: s.botPower, wind: s.wind, item: undefined,
+  });
+  assert.equal(s.flights[0].result.impact.kind, simulateShot(s.flights[0].result.input).impact.kind);
+  until(null);
+  assert.equal(s.turn, "cat");
+  const local = createMatch("local");
+  local.turn = "dog";
+  local.phase = "aiming";
+  assert.equal(botState(local), null);
+});
+
+test("bot tracking is brief visual motion and settles before attack", () => {
+  const delay = BOT_PROFILES.normal.delay;
+  assert.equal(botTrackingOffset(0, delay), 0);
+  assert.ok(Math.abs(botTrackingOffset(delay / 2, delay)) <= 4);
+  assert.ok(Math.abs(botTrackingOffset(delay, delay)) < 1e-10);
+  assert.ok(Math.abs(botTrackingOffset(delay * 2, delay)) < 1e-10);
 });
 test("invalid numeric input is rejected instead of freezing the simulation", () => {
   assert.throws(() => shot({ power: NaN }), RangeError);

@@ -1,5 +1,6 @@
 import { ARENA, NAMES, PHYSICS, other } from "./constants";
 import { trajectoryPointAt } from "./ballistics";
+import { BOT_PROFILES, botState, botTrackingOffset } from "./bot";
 import { cameraKick, hitMotion, throwPose, THROW_DURATION } from "./presentation";
 import type { MatchState, Side } from "./types";
 
@@ -479,7 +480,10 @@ function drawAimGuide(c: Context, s: MatchState, reduced: boolean) {
   if (s.selected === "heal") return;
   const style = fighterStyle(s.turn);
   const origin = ARENA.origins[s.turn];
-  const angle = s.angle * Math.PI / 180;
+  const tracking = botState(s) === "chase" && !reduced
+    ? botTrackingOffset(s.elapsed, BOT_PROFILES[s.difficulty].delay)
+    : 0;
+  const angle = (s.angle + tracking) * Math.PI / 180;
   const direction = s.turn === "cat" ? 1 : -1;
   c.save();
   for (let i = 1; i <= 4; i++) {
@@ -661,7 +665,10 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visual
   }
 
   const blink = time % 4.1 > 3.98 || defeat;
-  const gaze = active && !s.winner ? 2.5 : 0;
+  const trackingGaze = botState(s) === "chase" && !reduced
+    ? botTrackingOffset(s.elapsed, BOT_PROFILES[s.difficulty].delay) * 0.25
+    : 0;
+  const gaze = active && !s.winner ? 2.5 + trackingGaze : 0;
   for (const x of [-13, 16]) {
     ellipse(c, x, -10, 12, blink ? 2 : 14, THEMES[currentTheme()].cloud, true);
     if (!blink) ellipse(c, x + 4 + gaze, -8, 4.5, hit ? 7 : 8, C.ink);

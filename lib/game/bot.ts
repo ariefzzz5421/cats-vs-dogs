@@ -1,6 +1,23 @@
 import { ARENA, clamp } from "./constants";
 import { randomUnit } from "./ballistics";
-import type { BallisticResult, BotMemory, Difficulty } from "./types";
+import type { BallisticResult, BotMemory, Difficulty, MatchState } from "./types";
+
+export type BotState = "chase" | "attack" | "recover";
+
+/** Derived from the match phase so the bot cannot drift into an illegal action. */
+export function botState(s: Pick<MatchState, "mode" | "turn" | "phase">): BotState | null {
+  if (s.mode !== "solo" || s.turn !== "dog") return null;
+  if (s.phase === "aiming") return "chase";
+  if (s.phase === "charging" || s.phase === "throwing") return "attack";
+  if (s.phase === "flying" || s.phase === "impact" || s.phase === "switching") return "recover";
+  return null;
+}
+
+/** Small visual search around the eventual aim; never changes shot inputs. */
+export function botTrackingOffset(elapsed: number, delay: number) {
+  const progress = clamp(elapsed / Math.max(delay, 0.001), 0, 1);
+  return Math.sin(progress * Math.PI) * Math.sin(elapsed * 12) * 4;
+}
 export const BOT_PROFILES = {
   easy: { error: 15, wind: 0.2, learning: 0.25, delay: 1.05 },
   normal: { error: 8, wind: 0.6, learning: 0.5, delay: 0.8 },
