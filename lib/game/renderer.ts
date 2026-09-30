@@ -1,6 +1,6 @@
-import { ARENA, NAMES, other } from "./constants";
+import { ARENA, NAMES, PHYSICS, other } from "./constants";
 import { trajectoryPointAt } from "./ballistics";
-import { throwPose } from "./presentation";
+import { cameraKick, hitMotion, throwPose, THROW_DURATION } from "./presentation";
 import type { MatchState, Side } from "./types";
 
 const C = {
@@ -490,11 +490,14 @@ function drawAimGuide(c: Context, s: MatchState, reduced: boolean) {
   c.restore();
 }
 
-function chargeDial(c: Context, s: MatchState) {
+function chargeDial(c: Context, s: MatchState, visualOffset: number) {
   if (!["aiming", "charging", "throwing"].includes(s.phase)) return;
   const x = ARENA.fighters[s.turn].x;
   const y = ARENA.ground - 162;
   const charging = s.phase !== "aiming";
+  const visualPower = s.phase === "charging"
+    ? Math.min(PHYSICS.maxPower, s.power + PHYSICS.chargeRate * visualOffset)
+    : s.power;
   c.save();
   c.lineWidth = 12;
   c.strokeStyle = C.ink;
@@ -503,18 +506,18 @@ function chargeDial(c: Context, s: MatchState) {
   c.strokeStyle = "#fff9e9"; c.stroke();
   if (charging) {
     c.strokeStyle = s.power > 85 ? C.dogTeam : C.sun;
-    c.beginPath(); c.arc(x, y, 57, Math.PI * 1.12, Math.PI * (1.12 + 0.76 * s.power / 100)); c.stroke();
+    c.beginPath(); c.arc(x, y, 57, Math.PI * 1.12, Math.PI * (1.12 + 0.76 * visualPower / 100)); c.stroke();
   }
-  text(c, charging ? `${Math.round(s.power)}%` : "HOLD", x, y - 19, 20);
+  text(c, charging ? `${Math.round(visualPower)}%` : "HOLD", x, y - 19, 20);
   text(c, charging ? "RELEASE!" : "TO THROW", x, y - 2, 11);
   c.restore();
 }
 
-function fighter(c: Context, s: MatchState, side: Side, reduced: boolean) {
+function fighter(c: Context, s: MatchState, side: Side, reduced: boolean, visualOffset: number) {
   const active = s.turn === side;
   const cat = side === "cat";
   const style = fighterStyle(side);
-  const hit = s.effects.find((e) => e.impact.target === side);
+  const hit = s.effects.findLast((e) => e.impact.target === side);
   const miss =
     s.phase === "impact" &&
     !s.effects.some((e) => e.impact.kind === "target") &&
@@ -525,11 +528,14 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean) {
   const throwing =
     active &&
     (s.phase === "throwing" || (s.phase === "flying" && s.elapsed < 0.25));
-  const time = reduced ? 0 : s.clock;
+  const elapsed = s.elapsed + visualOffset;
+  const time = reduced ? 0 : s.clock + visualOffset;
   const idle = Math.sin(time * 2.25 + (cat ? 0 : 1.2));
   const breathe = reduced ? 0 : Math.sin(time * 3.1) * 0.018;
-  const recoil = throwing ? Math.sin(Math.min(1, s.elapsed * 5) * Math.PI) : 0;
-  const pose = throwPose(active ? s.phase : "menu", s.elapsed, s.power);
+  const recoil = throwing && s.phase === "throwing"
+    ? Math.sin(Math.min(1, elapsed / THROW_DURATION) * Math.PI) : 0;
+  const pose = throwPose(active ? s.phase : "menu", elapsed, s.power);
+  const reaction = hit && !reduced ? hitMotion(hit.age + visualOffset, hit.impact.damage) : null;
 
   c.save();
   c.translate(ARENA.fighters[side].x, ARENA.ground);
@@ -545,14 +551,17 @@ function fighter(c: Context, s: MatchState, side: Side, reduced: boolean) {
 
   c.scale(cat ? 1 : -1, 1);
   if (!reduced) {
-    c.translate(-recoil * 3, 0);
+    c.translate(-recoil * 3 - (reaction?.knockback ?? 0), 0);
     c.rotate(
       pose.lean +
-        (hit ? -Math.sin(hit.age * 25) * 0.13 * Math.max(0, 1 - hit.age) : 0),
+        (reaction?.tilt ?? 0),
     );
-    c.scale(1 + charge * 0.05 - breathe * 0.5, 1 - charge * 0.07 + breathe);
+    c.scale(
+      (1 + charge * 0.05 - breathe * 0.5) * (reaction?.scaleX ?? 1),
+      (1 - charge * 0.07 + breathe) * (reaction?.scaleY ?? 1),
+    );
     if (victory) c.translate(0, -Math.abs(Math.sin(time * 7)) * 9);
-    if (miss && !active) c.rotate(Math.sin(s.elapsed * 15) * 0.018);
+    if (miss && !active) c.rotate(Math.sin(elapsed * 15) * 0.018);
   }
 
   if (defeat) {
@@ -711,24 +720,25 @@ export class GameRenderer {
     return canvas;
   }
 
-  draw(c: Context, s: MatchState, reduced: boolean, lowPower: boolean) {
+  draw(c: Context, s: MatchState, reduced: boolean, lowPower: boolean, visualOffset = 0) {
     c.save();
     c.lineJoin = "round";
     c.lineCap = "round";
 
     const theme = currentTheme();
     const t = THEMES[theme];
-    const hit = s.effects.find(
+    const hit = s.effects.findLast(
       (e) => e.impact.kind === "target" && e.age < 0.18,
     );
     if (hit && !reduced) {
-      c.translate(Math.sin(hit.age * 70) * 2.5, Math.cos(hit.age * 80) * 1.5);
+      const kick = cameraKick(hit.age + visualOffset, hit.impact.damage);
+      c.translate(kick.x, kick.y);
     }
 
     c.drawImage(this.backgroundFor(theme), 0, 0);
     c.translate(0, -ARENA.cameraTop);
 
-    const windTime = reduced ? 0 : s.clock * s.wind * 0.5;
+    const windTime = reduced ? 0 : (s.clock + visualOffset) * s.wind * 0.5;
     cloud(c, 235 + Math.sin(windTime / 60) * 20, 100, 0.75, t.cloud);
     cloud(c, 600 + Math.sin(windTime / 90) * 24, 160, 0.55, t.cloud);
 
@@ -744,17 +754,17 @@ export class GameRenderer {
       false,
     );
 
-    fighter(c, s, "cat", reduced);
-    fighter(c, s, "dog", reduced);
-    chargeDial(c, s);
+    fighter(c, s, "cat", reduced, visualOffset);
+    fighter(c, s, "dog", reduced, visualOffset);
+    chargeDial(c, s, visualOffset);
 
     for (const side of ["cat", "dog"] as const) {
-      const reaction = s.effects.find((effect) => effect.impact.target === side);
+      const reaction = s.effects.findLast((effect) => effect.impact.target === side);
       if (!reaction) continue;
       c.save();
-      c.globalAlpha = Math.max(0, 1 - reaction.age / 0.8);
+      c.globalAlpha = Math.max(0, 1 - (reaction.age + visualOffset) / 0.8);
       for (let i = 0; i < 3; i++) {
-        const a = i * Math.PI * 2 / 3 + (reduced ? 0 : reaction.age * 8);
+        const a = i * Math.PI * 2 / 3 + (reduced ? 0 : (reaction.age + visualOffset) * 8);
         text(c, "✦", ARENA.fighters[side].x + Math.cos(a) * 42,
           ARENA.ground - 167 + Math.sin(a) * 10, 23, C.sun);
       }
@@ -774,7 +784,7 @@ export class GameRenderer {
     }
 
     for (const flight of s.flights) {
-      const elapsed = s.elapsed - flight.delay;
+      const elapsed = s.elapsed + visualOffset - flight.delay;
       if (elapsed < 0 || flight.resolved) continue;
       const point = trajectoryPointAt(flight.result, elapsed);
       const projectileStyle = fighterStyle(flight.result.input.side);
@@ -807,7 +817,8 @@ export class GameRenderer {
     }
 
     for (const effect of s.effects) {
-      const { impact, age } = effect;
+      const { impact } = effect;
+      const age = effect.age + visualOffset;
       const x = Math.max(42, Math.min(958, impact.point.x));
       const y = impact.point.y;
       c.globalAlpha = Math.max(0, 1 - age / 0.8);

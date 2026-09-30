@@ -133,7 +133,7 @@ export function GameExperience() {
       while (accumulator >= PHYSICS.dt) {
         const before = s.phase,
           hp = s.health.cat + s.health.dog;
-        const previousEffects = new Set(s.effects);
+        const previousEffects = s.effects;
         advance(s, PHYSICS.dt);
         accumulator -= PHYSICS.dt;
         if (s.phase !== before) {
@@ -156,7 +156,7 @@ export function GameExperience() {
         }
         if (s.health.cat + s.health.dog > hp) playGameSound("heal");
         for (const effect of s.effects) {
-          if (previousEffects.has(effect)) continue;
+          if (previousEffects.includes(effect)) continue;
           playGameSound(effect.impact.kind === "target" ? "hit" : effect.impact.kind === "wall" ? "wall" : "ground");
           if (effect.impact.target) playGameSound(effect.impact.target);
         }
@@ -170,7 +170,7 @@ export function GameExperience() {
         0,
         0,
       );
-      renderer.draw(context, s, reduced.matches, lowPower);
+      renderer.draw(context, s, reduced.matches, lowPower, s.paused ? 0 : accumulator);
       if (meter.current)
         meter.current.style.transform = `scaleX(${s.power / 100})`;
       if (powerText.current)
