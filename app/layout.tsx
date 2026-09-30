@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { JetBrains_Mono, Plus_Jakarta_Sans, Lilita_One } from "next/font/google";
 import "./globals.css";
 import "./rumble.css";
 import "./enhanced.css";
@@ -9,6 +9,7 @@ const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   display: "swap",
 });
+const lilita = Lilita_One({ variable: "--font-arcade", weight: "400", subsets: ["latin"], display: "swap" });
 
 const jetbrains = JetBrains_Mono({
   variable: "--font-jetbrains",
@@ -57,7 +58,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${jakarta.variable} ${jetbrains.variable}`}>
+      <body className={`${jakarta.variable} ${jetbrains.variable} ${lilita.variable}`}>
         {children}
       </body>
     </html>
