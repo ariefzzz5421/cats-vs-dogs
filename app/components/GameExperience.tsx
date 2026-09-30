@@ -170,7 +170,7 @@ export function GameExperience() {
         0,
         0,
       );
-      renderer.draw(context, s, reduced.matches, lowPower, s.paused ? 0 : accumulator);
+      renderer.draw(context, s, reduced.matches, lowPower, s.paused ? 0 : accumulator, dt);
       if (meter.current)
         meter.current.style.transform = `scaleX(${s.power / 100})`;
       if (powerText.current)
@@ -405,7 +405,7 @@ export function GameExperience() {
           {(["cat", "dog"] as const).map((side) => (
             <div key={side} className={`health health-${side}`}>
               <div>
-                <strong>{NAMES[side]}</strong>
+                <strong><GameIcon name="weapon" side={side} /> {NAMES[side]}</strong>
                 <span>
                   {view.health[side]} <small>HP</small>
                 </span>
@@ -429,8 +429,8 @@ export function GameExperience() {
             <strong
               aria-label={`Wind ${Math.abs(view.wind)} out of 10 ${view.wind < 0 ? "left" : view.wind > 0 ? "right" : "calm"}`}
             >
-              {view.wind < 0 ? "←" : view.wind > 0 ? "→" : "—"}{" "}
-              {Math.abs(view.wind).toFixed(1)}
+              <span className="wind-arrow" aria-hidden="true">{view.wind < 0 ? "←" : view.wind > 0 ? "→" : "—"}</span>
+              <span>{Math.abs(view.wind).toFixed(1)}</span>
             </strong>
           </div>
         </section>
@@ -453,7 +453,7 @@ export function GameExperience() {
           <div className="menu-overlay">
             {!setup ? (
               <>
-                <p className="menu-tagline">Small yard. Big rivalry.</p>
+                <p className="menu-tagline"><span>Blaze</span> against <span>Major Bark</span><small>Small yard. Big rivalry.</small></p>
                 <button
                   className="primary play"
                   type="button"
