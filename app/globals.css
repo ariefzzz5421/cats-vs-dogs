@@ -21,7 +21,8 @@ body {
 }
 
 html {
-  background: var(--color-paper-2);
+  background: #b9d2c8;
+  background-image: repeating-linear-gradient(135deg, transparent 0 28px, #ffffff13 28px 30px);
 }
 
 body {

@@ -10,16 +10,16 @@ import {
 import {
   advance,
   cancelCharge,
-  canControl,
   createMatch,
   releaseCharge,
   selectItem,
+  selectSignature,
   setAngle,
   startCharge,
   startMatch,
   togglePause,
 } from "@/lib/game/engine";
-import { ARENA, ITEMS, NAMES, PHYSICS } from "@/lib/game/constants";
+import { ARENA, PHYSICS } from "@/lib/game/constants";
 import { GameRenderer } from "@/lib/game/renderer";
 import {
   playGameSound,
@@ -29,13 +29,25 @@ import {
   stopGameSounds,
   updateChargeSound,
 } from "@/lib/game/audio";
-import type { Difficulty, GameMode, MatchState, Item } from "@/lib/game/types";
+import type { Difficulty, MatchState } from "@/lib/game/types";
 import { GameIcon } from "./GameIcon";
+import {
+  DEFAULT_SETUP,
+  sanitizeSetup,
+  migrateLegacySetup,
+  SETTINGS_KEY,
+  type MatchSetup,
+} from "@/lib/game/setup";
+import { SetupFlow, type SetupStep } from "./game/SetupFlow";
+import { BattleHUD, BattleControls } from "./game/BattleHUD";
+import { MatchResult } from "./game/MatchResult";
+import { characterFor } from "@/lib/game/characters";
 
 const copyState = (s: MatchState): MatchState => ({
   ...s,
   health: { ...s.health },
   stock: { cat: { ...s.stock.cat }, dog: { ...s.stock.dog } },
+  signatureStock: { ...s.signatureStock },
 });
 function Modal({
   title,
@@ -61,11 +73,14 @@ function Modal({
 export function GameExperience() {
   const engine = useRef<MatchState>(createMatch());
   const canvas = useRef<HTMLCanvasElement>(null);
-  const meter = useRef<HTMLDivElement>(null);
+  const meter = useRef<HTMLElement>(null);
+  const chargeLabel = useRef<HTMLElement>(null);
+  const throwLabel = useRef<HTMLElement>(null);
   const powerText = useRef<HTMLOutputElement>(null);
   const powerMeter = useRef<HTMLDivElement>(null);
   const [view, setView] = useState(() => createMatch());
-  const [setup, setSetup] = useState(false);
+  const [setup, setSetup] = useState<MatchSetup>(DEFAULT_SETUP);
+  const [step, setStep] = useState<SetupStep>("home");
   const [tutorial, setTutorial] = useState(false);
   const [sound, setSound] = useState(true);
   const [error, setError] = useState("");
@@ -87,11 +102,28 @@ export function GameExperience() {
     }
     let savedSound = true;
     try {
-      const saved = JSON.parse(
-        localStorage.getItem("backyard-settings-v3") ?? "{}",
-      );
-      if (["easy", "normal", "hard"].includes(saved.difficulty))
-        engine.current.difficulty = saved.difficulty;
+      const readSetting = (key: string): unknown => {
+        try {
+          return JSON.parse(localStorage.getItem(key) ?? "null");
+        } catch {
+          return null;
+        }
+      };
+      const settings = readSetting("backyard-settings-v3");
+      const saved =
+        settings && typeof settings === "object"
+          ? (settings as { difficulty?: unknown; sound?: unknown })
+          : {};
+      const modern = readSetting(SETTINGS_KEY);
+      const storedSetup = modern
+        ? sanitizeSetup(modern)
+        : migrateLegacySetup(
+            readSetting("cats-dogs-look-v1"),
+            saved.difficulty,
+          );
+      requestAnimationFrame(() => setSetup(storedSetup));
+      // Restore only settings; the mandatory setup flow always begins at Home.
+      engine.current.difficulty = storedSetup.difficulty;
       if (typeof saved.sound === "boolean") {
         savedSound = saved.sound;
         setSoundEnabled(saved.sound);
@@ -150,14 +182,20 @@ export function GameExperience() {
           if (
             s.phase === "impact" &&
             s.effects.length &&
-            !s.effects.some((e) => e.impact.kind === "target")
+            !s.effects.some((e) => e.impact.target)
           )
             playGameSound("laugh");
         }
         if (s.health.cat + s.health.dog > hp) playGameSound("heal");
         for (const effect of s.effects) {
           if (previousEffects.includes(effect)) continue;
-          playGameSound(effect.impact.kind === "target" ? "hit" : effect.impact.kind === "wall" ? "wall" : "ground");
+          playGameSound(
+            effect.impact.target
+              ? "hit"
+              : effect.impact.kind === "wall"
+                ? "wall"
+                : "ground",
+          );
           if (effect.impact.target) playGameSound(effect.impact.target);
         }
       }
@@ -170,11 +208,51 @@ export function GameExperience() {
         0,
         0,
       );
-      renderer.draw(context, s, reduced.matches, lowPower, s.paused ? 0 : accumulator, dt);
+      if (s.phase !== "menu")
+        renderer.draw(
+          context,
+          s,
+          reduced.matches,
+          lowPower,
+          s.paused ? 0 : accumulator,
+          dt,
+        );
       if (meter.current)
         meter.current.style.transform = `scaleX(${s.power / 100})`;
       if (powerText.current)
         powerText.current.value = `${Math.round(s.power)}%`;
+      const level =
+        s.power >= 99
+          ? "MAX!"
+          : s.power >= 70
+            ? "STRONG"
+            : s.power >= 30
+              ? "GOOD"
+              : "LOW";
+      if (chargeLabel.current)
+        chargeLabel.current.textContent =
+          s.phase === "charging" ? level : "POWER";
+      if (
+        throwLabel.current &&
+        s.phase === "charging" &&
+        (s.mode === "local" || s.turn === "cat")
+      )
+        throwLabel.current.textContent =
+          s.power >= 99
+            ? "MAX POWER!"
+            : s.power >= 70
+              ? "STRONG! RELEASE"
+              : "HOLDING…";
+      powerMeter.current?.style.setProperty(
+        "--charge-color",
+        s.power >= 90
+          ? "#e57255"
+          : s.power >= 70
+            ? "#f1a24d"
+            : s.power >= 30
+              ? "#ffd366"
+              : "#69bac5",
+      );
       powerMeter.current?.setAttribute(
         "aria-valuenow",
         String(Math.round(s.power)),
@@ -187,6 +265,7 @@ export function GameExperience() {
         s.health.dog,
         s.message,
         s.selected,
+        s.signatureSelected,
       ].join("|");
       if (signature !== next) {
         signature = next;
@@ -273,15 +352,15 @@ export function GameExperience() {
     }
   };
   const begin = () => {
-    const current = engine.current;
     engine.current = createMatch(
-      current.mode,
-      current.difficulty,
+      setup.mode,
+      setup.difficulty,
       crypto.getRandomValues(new Uint32Array(1))[0],
+      setup,
     );
     startMatch(engine.current);
     playGameSound("ui");
-    setSetup(false);
+    setStep("home");
     publish();
   };
   const menu = () => {
@@ -292,7 +371,7 @@ export function GameExperience() {
       engine.current.mode,
       engine.current.difficulty,
     );
-    setSetup(false);
+    setStep("home");
     publish();
   };
   const pointerDown = (event: ReactPointerEvent<HTMLElement>) => {
@@ -339,15 +418,22 @@ export function GameExperience() {
       );
     }
   };
-  const isMenu = view.phase === "menu",
-    controlled = canControl(view),
-    charging = view.phase === "charging";
-
+  const isMenu = view.phase === "menu";
+  const updateSetup = (value: MatchSetup) => {
+    setSetup(value);
+    playGameSound("ui");
+    if (value.loadout.length === 3)
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(value));
+      } catch {
+        /* Optional settings. */
+      }
+  };
   return (
-    <main className={`rumble ${isMenu ? "is-menu" : "is-match"}`}>
+    <main className={`arcade ${isMenu ? "is-menu" : "is-match"}`}>
       <header className="game-toolbar">
         <span className="small-brand">
-          CATS <b>vs</b> DOGS
+          CATS <b>vs</b> DOGS <small>BACKYARD RUMBLE</small>
         </span>
         <div>
           <button
@@ -355,7 +441,6 @@ export function GameExperience() {
             onClick={toggleSound}
             aria-pressed={sound}
             aria-label={`Sound ${sound ? "on" : "off"}`}
-            title="Toggle sound"
           >
             <GameIcon name={sound ? "sound" : "mute"} />
           </button>
@@ -383,294 +468,65 @@ export function GameExperience() {
           )}
         </div>
       </header>
-      {isMenu ? (
-        <div className="title-block">
-          <GameIcon
-            name="weapon"
-            side="cat"
-            className="title-weapon title-cat"
-          />
-          <h1>
-            <span>CATS</span> <small>VS</small> <span>DOGS</span>
-          </h1>
-          <p>BACKYARD RUMBLE</p>
-          <GameIcon
-            name="weapon"
-            side="dog"
-            className="title-weapon title-dog"
-          />
-        </div>
-      ) : (
-        <section className="health-row" aria-label="Match health and wind">
-          {(["cat", "dog"] as const).map((side) => (
-            <div key={side} className={`health health-${side}`}>
-              <div>
-                <strong><GameIcon name="weapon" side={side} /> {NAMES[side]}</strong>
-                <span>
-                  {view.health[side]} <small>HP</small>
-                </span>
-              </div>
-              <div
-                className="health-track"
-                role="meter"
-                aria-label={`${NAMES[side]} health`}
-                aria-valuenow={view.health[side]}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
-                <i
-                  style={{ transform: `scaleX(${view.health[side] / 100})` }}
-                />
-              </div>
-            </div>
-          ))}
-          <div className="wind">
-            <small>WIND</small>
-            <strong
-              aria-label={`Wind ${Math.abs(view.wind)} out of 10 ${view.wind < 0 ? "left" : view.wind > 0 ? "right" : "calm"}`}
-            >
-              <span className="wind-arrow" aria-hidden="true">{view.wind < 0 ? "←" : view.wind > 0 ? "→" : "—"}</span>
-              <span>{Math.abs(view.wind).toFixed(1)}</span>
-            </strong>
-          </div>
-        </section>
+      {isMenu && (
+        <SetupFlow
+          setup={setup}
+          step={step}
+          onStep={(value) => {
+            setStep(value);
+            playGameSound("ui");
+          }}
+          onChange={updateSetup}
+          onStart={begin}
+          onTutorial={() => setTutorial(true)}
+        />
       )}
-      <div className="playfield">
-        <canvas
-          ref={canvas}
-          width={1000}
-          height={560}
-          aria-label="Backyard arena. Blaze the cat is left, Major Bark the dog is right. Hold the throw button or Space to charge, release to throw."
-          onPointerDown={pointerDown}
-          onPointerUp={(e) => pointerEnd(e)}
-          onPointerCancel={(e) => pointerEnd(e, true)}
-          onLostPointerCapture={(e) => pointerEnd(e, true)}
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          Your browser needs Canvas support to play this game.
-        </canvas>
-        {isMenu && (
-          <div className="menu-overlay">
-            {!setup ? (
-              <>
-                <p className="menu-tagline"><span>Blaze</span> against <span>Major Bark</span><small>Small yard. Big rivalry.</small></p>
-                <button
-                  className="primary play"
-                  type="button"
-                  onClick={() => {
-                    setSetup(true);
-                    playGameSound("ui");
-                  }}
-                >
-                  <GameIcon name="play" />
-                  <span>
-                    LET’S PLAY<small>Make a little trouble.</small>
-                  </span>
-                </button>
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={() => setTutorial(true)}
-                >
-                  How to play
-                </button>
-              </>
-            ) : (
-              <div className="setup">
-                <h2>Pick your showdown</h2>
-                <div className="mode-row">
-                  {(["solo", "local"] as GameMode[]).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      aria-pressed={view.mode === mode}
-                      onClick={() => {
-                        engine.current.mode = mode;
-                        publish();
-                        playGameSound("ui");
-                      }}
-                    >
-                      <GameIcon name={mode} />
-                      {mode === "solo" ? "VS COMPUTER" : "2 PLAYERS"}
-                    </button>
-                  ))}
-                </div>
-                {view.mode === "solo" ? (
-                  <div className="difficulty" aria-label="Difficulty">
-                    {(["easy", "normal", "hard"] as Difficulty[]).map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        aria-pressed={view.difficulty === d}
-                        onClick={() => {
-                          engine.current.difficulty = d;
-                          save(d, sound);
-                          publish();
-                        }}
-                      >
-                        {d}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p>One device. Cat first, then Dog.</p>
-                )}
-                <button className="primary" type="button" onClick={begin}>
-                  <GameIcon
-                    name="weapon"
-                    side={view.mode === "solo" ? "cat" : "dog"}
-                  />{" "}
-                  LET’S RUMBLE
-                </button>
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={() => setSetup(false)}
-                >
-                  Back
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-        {!isMenu && view.phase === "starting" && (
-          <div className="round-intro">
-            READY?<small>Cat throws first</small>
-          </div>
-        )}
-      </div>
-      {isMenu ? (
-        <p className="menu-hint">
-          Hold to charge · Release to throw · Watch the wind
-        </p>
-      ) : (
-        <section
-          className={`controls team-${view.turn}`}
-          data-phase={view.phase}
-          data-paused={view.paused}
-          aria-label="Throw controls"
-        >
-          <div className="turn-status" role="status">
-            <strong>
-              {view.turn === "cat" ? "CAT" : "DOG"} TURN{" "}
-              <span>#{view.turnIndex + 1}</span>
-            </strong>
-            <span>{view.message}</span>
-          </div>
-          <div className="item-row" aria-label="Jurus — one-use skills">
-            {(Object.keys(ITEMS) as Item[]).map((item) => (
-              <button
-                type="button"
-                key={item}
-                title={ITEMS[item].description}
-                aria-label={`${ITEMS[item].name}. ${ITEMS[item].description}`}
-                aria-pressed={view.selected === item}
-                disabled={
-                  !controlled ||
-                  charging ||
-                  !view.stock[view.turn][item] ||
-                  (item === "heal" && view.health[view.turn] === 100)
-                }
-                onClick={() => {
-                  if (selectItem(engine.current, item)) playGameSound(item === "heal" ? "heal" : "ui");
-                  publish();
-                }}
-              >
-                <GameIcon name={item} side={view.turn} />
-                <span>
-                  {
-                    {
-                      double: "Double",
-                      heavy: "Heavy",
-                      shield: "Shield",
-                      heal: "Snack",
-                    }[item]
-                  }
-                </span>
-                <small aria-hidden="true">
-                  {view.stock[view.turn][item] ? "1" : "0"}
-                </small>
-              </button>
-            ))}
-          </div>
-          <label className="aim-control">
-            <span className="control-label">
-              <GameIcon name="aim" /> Angle
-            </span>{" "}
-            <output>{Math.round(view.angle)}°</output>
-            <input
-              type="range"
-              min={20}
-              max={78}
-              value={view.angle}
-              disabled={!controlled || charging}
-              onChange={(e) => {
-                setAngle(engine.current, Number(e.target.value));
-                publish();
-              }}
-            />
-          </label>
-          <div className="power-control">
-            <span>
-              <span className="control-label">
-                <GameIcon name="power" /> Power
-              </span>{" "}
-              <output ref={powerText} aria-live="off">
-                {Math.round(view.power)}%
-              </output>
-            </span>
-            <div
-              className="power-track"
-              ref={powerMeter}
-              role="meter"
-              aria-label="Throw power"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(view.power)}
-            >
-              <i ref={meter} />
-            </div>
-          </div>
-          <button
-            className="primary throw-button"
-            type="button"
-            disabled={!controlled}
+      <div className="battle-frame" hidden={isMenu}>
+        <BattleHUD state={view} />
+        <div className="playfield">
+          <canvas
+            ref={canvas}
+            width={1000}
+            height={640}
+            aria-label={`${characterFor("cat", view.setup.fighters).name} left, ${characterFor("dog", view.setup.fighters).name} right. Hold Space or touch to charge and release to throw.`}
             onPointerDown={pointerDown}
             onPointerUp={(e) => pointerEnd(e)}
             onPointerCancel={(e) => pointerEnd(e, true)}
             onLostPointerCapture={(e) => pointerEnd(e, true)}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <span className="throw-art">
-              <GameIcon name="weapon" side={view.turn} />
-              <i />
-              <i />
-            </span>
-            <span className="throw-copy">
-              <strong>
-                {controlled
-                  ? charging
-                    ? "RELEASE!"
-                    : "HOLD & THROW"
-                  : "IN ACTION"}
-              </strong>
-              <small>
-                {controlled
-                  ? charging
-                    ? "Let it fly!"
-                    : "Hold Space / touch"
-                  : "Next turn incoming"}
-              </small>
-            </span>
-          </button>
-          <p className="rotate-hint">Landscape gives your throws more room.</p>
-          {view.selected && (
-            <p className="item-description">
-              {ITEMS[view.selected].description}
-            </p>
+            Your browser needs Canvas support.
+          </canvas>
+          {view.phase === "starting" && (
+            <div className="round-intro">
+              ROUND 1<small>Cat throws first</small>
+            </div>
           )}
-        </section>
-      )}
+        </div>
+        <BattleControls
+          state={view}
+          onItem={(item) => {
+            if (selectItem(engine.current, item))
+              playGameSound(item === "heal" ? "heal" : "ui");
+            publish();
+          }}
+          onSignature={() => {
+            if (selectSignature(engine.current)) playGameSound("ui");
+            publish();
+          }}
+          onAngle={(angle) => {
+            setAngle(engine.current, angle);
+            publish();
+          }}
+          onDown={pointerDown}
+          onEnd={pointerEnd}
+          meter={meter}
+          powerText={powerText}
+          powerMeter={powerMeter}
+          chargeLabel={chargeLabel}
+          throwLabel={throwLabel}
+        />
+      </div>
       {error && (
         <p role="alert" className="error-note">
           {error}
@@ -743,17 +599,16 @@ export function GameExperience() {
         </Modal>
       )}
       {view.phase === "gameOver" && (
-        <Modal
-          title={`${view.winner ? NAMES[view.winner] : "Nobody"} wins!`}
-          onClose={menu}
-        >
-          <p>The yard is yours. For now.</p>
-          <button className="primary" type="button" onClick={begin}>
-            REMATCH
-          </button>
-          <button type="button" onClick={menu}>
-            Main menu
-          </button>
+        <Modal title="Backyard champion" onClose={menu}>
+          <MatchResult
+            state={view}
+            onRematch={begin}
+            onChange={() => {
+              menu();
+              setStep("fighters");
+            }}
+            onMenu={menu}
+          />
         </Modal>
       )}
     </main>

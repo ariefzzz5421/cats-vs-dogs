@@ -9,7 +9,10 @@ Next.js + React + TypeScript. No game framework, physics library, database, or l
 - **2 players:** alternate Cat and Dog on one device.
 - Hold the arena, throw button, or Space. Release to throw. Power caps at 100% after about 1.5 seconds.
 - Optional angle slider: 20–78°. Default is 55°; power and wind alone are enough to learn the game.
-- Each player gets one Double toss, Heavy shot, Wind shield, and Snack break. Select before charging; select again to cancel. Snack restores up to 20 HP and consumes the turn.
+- Setup always follows Home → Mode → Arena → Fighters → Loadout → Ready. Click an arena to confirm it; returning settings never bypass setup.
+- Choose among six distinct yards and five Cats / five Dogs. Both fighters keep 100 HP and identical normal-shot physics; style ratings describe signature tendencies, not hidden stat advantages.
+- Pack exactly three one-use tricks from Double Trouble, Power Shot, Wind Bubble, Snack Time, Curve Shot, Second Chance and Lucky Paw / Bone. The same loadout goes to both fighters. Snack restores up to 20 HP and consumes the turn; Second Chance grants one 70%-capped retry after a miss.
+- Each fighter also has a one-use signature. Signatures and tricks cannot stack. Multi-throws divide damage; bounce/shockwave attacks resolve actual physical contact. Maximum signature-turn damage is tested at 36 HP or less.
 - Escape pauses. Switching tabs pauses and cancels an unfinished charge. Fullscreen is optional.
 
 ## Development
@@ -26,13 +29,15 @@ Open http://localhost:3000. Deploy as a normal Next.js application on Vercel; no
 
 ## One production architecture
 
-- `app/components/GameExperience.tsx`: menus, accessible controls, pointer capture, keyboard, settings, and the animation-loop adapter.
+- `app/components/GameExperience.tsx`: pointer capture, keyboard, audio, settings and the fixed-step animation-loop adapter.
+- `app/components/game/`: mandatory setup flow, shared original Canvas previews, integrated battle HUD and winner screen.
+- `lib/game/themes.ts`, `characters.ts`, `abilities.ts`, `setup.ts`: typed arena, fighter, weapon, signature and loadout definitions. DOM attributes are not gameplay settings.
 - `lib/game/engine.ts`: one authoritative match state machine. It owns turns, item inventory, charge, damage, pause, and game-over. No browser timers or React dependencies.
 - `lib/game/ballistics.ts`: pure 120 Hz integration and collision, with interpolated trajectory playback. Wind is deterministic and triangularly distributed on a −10…10 scale.
 - `lib/game/bot.ts`: approximate wind compensation, difficulty-dependent noise, and remembered short/long correction. No search for perfect shots.
 - `lib/game/renderer.ts`: original vector characters, environment, projectiles, and effects, all drawn on Canvas. Background painted once to an offscreen canvas. Visual wall coordinates come directly from physics constants.
 - `lib/game/audio.ts`: original synthesized Web Audio cues; audio failure never gates a match.
-- `tests/game.test.ts`: mechanics tests, including a 162-shot angle/power/wind/side matrix.
+- `tests/`: baseline mechanics, presentation and arcade setup/ability tests, including an additional 270-signature-input angle/power/wind matrix.
 
 Rendering uses a bounded DPR (2, or 1.25 on low-core devices), a fixed-step accumulator, and interpolation. React publishes only meaningful state changes; power and projectile frames do not cause React renders. Large frame deltas are clamped. Reduced motion preserves complete flight while disabling decorative movement and particles.
 

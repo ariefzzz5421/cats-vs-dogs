@@ -1,5 +1,6 @@
 import { ARENA, PHYSICS, clamp, other } from "./constants";
 import type { BallisticResult, ShotInput, TrajectoryPoint } from "./types";
+import { shotProperties } from "./abilities";
 export function powerToVelocity(power: number) {
   return 200 + clamp(power, PHYSICS.minPower, PHYSICS.maxPower) * 5;
 }
@@ -40,12 +41,11 @@ export function simulateShot(input: ShotInput): BallisticResult {
   if (![input.angle, input.power, input.wind].every(Number.isFinite))
     throw new RangeError("Shot inputs must be finite");
   const angle = (clamp(input.angle, 20, 78) * Math.PI) / 180;
-  const velocity =
-    powerToVelocity(input.power) * (input.item === "heavy" ? 0.9 : 1);
+  const properties = shotProperties(input);
+  const velocity = powerToVelocity(input.power) * properties.velocity;
   const wind =
-    clamp(input.wind, -10, 10) *
-    PHYSICS.windAcceleration *
-    (input.item === "shield" ? 0.2 : 1);
+    clamp(input.wind, -10, 10) * PHYSICS.windAcceleration * properties.wind +
+    properties.curve * (input.side === "cat" ? 1 : -1);
   let point: TrajectoryPoint = {
     ...ARENA.origins[input.side],
     vx: Math.cos(angle) * velocity * (input.side === "cat" ? 1 : -1),
@@ -53,6 +53,7 @@ export function simulateShot(input: ShotInput): BallisticResult {
     time: 0,
   };
   const points = [point];
+  const bounces: TrajectoryPoint[] = [];
   const target = other(input.side);
   for (let tick = 1; tick <= 1200; tick++) {
     const vx = point.vx + wind * PHYSICS.dt,
@@ -77,20 +78,64 @@ export function simulateShot(input: ShotInput): BallisticResult {
               point.y < -100
             ? "boundary"
             : null;
-    if (kind)
+    if (kind && kind === properties.bounce && bounces.length === 0) {
+      bounces.push({ ...point });
+      if (kind === "ground")
+        point = {
+          ...point,
+          y: ARENA.ground - PHYSICS.radius - 0.01,
+          vy: -Math.abs(vy) * 0.62,
+          vx: vx * 0.82,
+        };
+      else {
+        const top = point.y <= ARENA.wall.y;
+        point = top
+          ? {
+              ...point,
+              y: ARENA.wall.y - PHYSICS.radius - 0.01,
+              vy: -Math.abs(vy) * 0.65,
+            }
+          : {
+              ...point,
+              x:
+                vx > 0
+                  ? ARENA.wall.x - PHYSICS.radius - 0.01
+                  : ARENA.wall.x + ARENA.wall.width + PHYSICS.radius + 0.01,
+              vx: -vx * 0.8,
+            };
+      }
+      points[points.length - 1] = point;
+      continue;
+    }
+    if (kind) {
+      const shockHit =
+        kind === "ground" &&
+        properties.shockwave &&
+        Math.abs(point.x - ARENA.fighters[target].x) < 75;
       return {
         input,
         points,
+        bounces,
         impact: {
           kind,
+          character: input.character,
+          signature: input.signature,
           point,
-          target: kind === "target" ? target : undefined,
+          target: kind === "target" || shockHit ? target : undefined,
           damage:
             kind === "target"
-              ? calculateDamage(Math.hypot(vx, vy), input.item)
-              : 0,
+              ? Math.min(
+                  33,
+                  Math.round(
+                    calculateDamage(Math.hypot(vx, vy)) * properties.damage,
+                  ),
+                )
+              : shockHit
+                ? 9
+                : 0,
         },
       };
+    }
   }
   return { input, points, impact: { kind: "boundary", point, damage: 0 } };
 }
@@ -126,4 +171,16 @@ export function makeDeterministicWind(seed: number, turn: number) {
   const wind =
     Math.round((randomUnit(n) + randomUnit(n + 9137) - 1) * 100) / 10;
   return Math.abs(wind) < 0.7 ? 0 : wind;
+}
+export function windStrengthLabel(wind: number) {
+  const speed = Math.abs(wind);
+  return speed < 0.7
+    ? "CALM"
+    : speed < 2
+      ? "LIGHT"
+      : speed < 5
+        ? "MODERATE"
+        : speed < 8
+          ? "STRONG"
+          : "GALE";
 }
