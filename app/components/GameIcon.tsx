@@ -78,10 +78,10 @@ export function GameIcon({
       {name === "weapon" && <Weapon side={side} />}
       {name === "double" && (
         <>
-          <g opacity=".65" transform="translate(2 -2) scale(.8)">
+          <g transform="translate(-5 -4) rotate(-28 32 32) scale(.82)">
             <Weapon side={side} />
           </g>
-          <g transform="translate(9 16) scale(.8)">
+          <g transform="translate(9 8) rotate(28 32 32) scale(.82)">
             <Weapon side={side} />
           </g>
           <path d="m47 7 5 3-5 3M54 10h6" stroke="var(--color-accent-2)" />
@@ -163,12 +163,17 @@ export function GameIcon({
       {name === "lucky" && (
         <>
           <path
-            d="m32 8 7 16 18 3-13 13 3 19-15-9-17 9 4-19L5 27l19-3Z"
+            d="M32 34V58m0-12 11-7"
+            stroke="var(--color-accent-2)"
+            strokeWidth="5"
+          />
+          <path
+            d="M31 31C12 25 9 7 22 8c8 0 10 11 10 11S34 6 43 8c13 2 8 20-11 23 18-10 29-1 22 10-5 8-17 2-22-7-5 9-17 15-22 7-7-11 4-20 21-10Z"
             fill="var(--color-accent)"
           />
-          <circle cx="32" cy="34" r="9" fill="var(--color-bone)" />
-          <circle cx="24" cy="22" r="3" />
-          <circle cx="39" cy="22" r="3" />
+          <circle cx="32" cy="32" r="7" fill="var(--color-bone)" />
+          <circle cx="29" cy="29" r="2" fill="var(--color-ink)" stroke="none" />
+          <circle cx="35" cy="29" r="2" fill="var(--color-ink)" stroke="none" />
         </>
       )}
       {name === "aim" && (

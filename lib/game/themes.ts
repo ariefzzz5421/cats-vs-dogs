@@ -24,6 +24,67 @@ export type ArenaTheme = {
     cloud: string;
   };
 };
+/** Art only. Every variant is drawn inside the shared ARENA.wall collider. */
+export const WALL_VARIANTS: Record<
+  ThemeId,
+  {
+    face: string;
+    light: string;
+    shade: string;
+    mortar: string;
+    detail: string;
+    kind: "brick" | "stone" | "vent";
+  }
+> = {
+  sunny: {
+    face: "#bf765b",
+    light: "#df9a74",
+    shade: "#935840",
+    mortar: "#efd4ae",
+    detail: "#78905b",
+    kind: "brick",
+  },
+  sunset: {
+    face: "#af6b57",
+    light: "#d99773",
+    shade: "#815044",
+    mortar: "#e7bd95",
+    detail: "#967e52",
+    kind: "brick",
+  },
+  night: {
+    face: "#687d88",
+    light: "#8da0a1",
+    shade: "#445766",
+    mortar: "#aab7ae",
+    detail: "#72957c",
+    kind: "brick",
+  },
+  sakura: {
+    face: "#a69e95",
+    light: "#d0bfb2",
+    shade: "#817e7a",
+    mortar: "#e9d7cb",
+    detail: "#c9859d",
+    kind: "stone",
+  },
+  rooftop: {
+    face: "#8e9ca5",
+    light: "#bac7c9",
+    shade: "#60717f",
+    mortar: "#d9dbd0",
+    detail: "#516c79",
+    kind: "vent",
+  },
+  rainy: {
+    face: "#707f83",
+    light: "#9ba9a8",
+    shade: "#4d6065",
+    mortar: "#b3bcba",
+    detail: "#8db7b4",
+    kind: "brick",
+  },
+};
 const base = {
   skyTop: "#a9e0e9",
   skyBottom: "#e4f0dc",

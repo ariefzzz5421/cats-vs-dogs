@@ -172,3 +172,15 @@ export function makeDeterministicWind(seed: number, turn: number) {
     Math.round((randomUnit(n) + randomUnit(n + 9137) - 1) * 100) / 10;
   return Math.abs(wind) < 0.7 ? 0 : wind;
 }
+export function windStrengthLabel(wind: number) {
+  const speed = Math.abs(wind);
+  return speed < 0.7
+    ? "CALM"
+    : speed < 2
+      ? "LIGHT"
+      : speed < 5
+        ? "MODERATE"
+        : speed < 8
+          ? "STRONG"
+          : "GALE";
+}

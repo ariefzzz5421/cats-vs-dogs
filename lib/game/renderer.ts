@@ -1,5 +1,7 @@
 import { ARENA, PHYSICS, other } from "./constants";
 import { simulateShot, trajectoryPointAt } from "./ballistics";
+import { aimGuidePoints } from "./aimGuide";
+import { drawWeapon, WEAPON_ART } from "./weapons";
 import { BOT_PROFILES, botState, botTrackingOffset } from "./bot";
 import {
   cameraKick,
@@ -10,7 +12,7 @@ import {
   THROW_DURATION,
 } from "./presentation";
 import type { MatchState, Side } from "./types";
-import { THEMES, type ThemeId as ArenaTheme } from "./themes";
+import { THEMES, WALL_VARIANTS, type ThemeId as ArenaTheme } from "./themes";
 import {
   characterFor,
   characterMotion,
@@ -19,7 +21,6 @@ import {
   type WeaponId,
 } from "./characters";
 import { createMatch } from "./engine";
-import { shotProperties } from "./abilities";
 
 const C = {
   ink: "#273c42",
@@ -137,6 +138,95 @@ function cloud(c: Context, x: number, y: number, scale: number, fill: string) {
     0,
   );
   c.restore();
+}
+
+function centerWall(c: Context, theme: ArenaTheme) {
+  const { x, y, width, height } = ARENA.wall;
+  const skin = WALL_VARIANTS[theme];
+  c.save();
+  c.beginPath();
+  c.rect(x, y, width, height);
+  c.clip();
+  c.fillStyle = skin.shade;
+  c.fillRect(x, y, width, height);
+  c.fillStyle = skin.face;
+  c.fillRect(x + 3, y + 4, width - 6, height - 4);
+  if (skin.kind === "vent") {
+    c.fillStyle = skin.light;
+    c.fillRect(x + 2, y + 4, width - 4, 17);
+    for (let row = 0; row < 6; row++) {
+      const sy = y + 31 + row * 21;
+      c.fillStyle = row % 2 ? skin.shade : skin.mortar;
+      c.fillRect(x + 7, sy, width - 14, 11);
+      line(c, x + 10, sy + 3, x + width - 10, sy + 3, skin.light, 2);
+    }
+    line(c, x + 5, y + 23, x + 5, y + height, skin.detail, 2);
+  } else {
+    const rows = skin.kind === "stone" ? 6 : 9;
+    const rowHeight = height / rows;
+    for (let row = 0; row < rows; row++) {
+      const sy = y + row * rowHeight;
+      line(c, x + 2, sy, x + width - 2, sy, skin.mortar, 2.4);
+      const seam = x + (row % 2 ? 15 : 27);
+      line(
+        c,
+        seam,
+        sy + 2,
+        seam - (row % 3 === 0 ? 2 : 0),
+        sy + rowHeight - 3,
+        skin.mortar,
+        2,
+      );
+      c.fillStyle = row % 3 === 0 ? skin.light : skin.shade;
+      c.globalAlpha = 0.34;
+      c.fillRect(
+        x + (row % 2 ? 4 : 19),
+        sy + 5,
+        11,
+        Math.max(3, rowHeight - 10),
+      );
+      c.globalAlpha = 1;
+    }
+    path(c, "M486 343l5 5 4-8m13 83 5 6 3-4", "transparent", skin.shade, 1.5);
+    if (theme === "night" || theme === "sakura") {
+      for (const [mx, my] of [
+        [x + 4, y + 17],
+        [x + 32, y + 67],
+        [x + 8, y + 111],
+      ])
+        ellipse(c, mx, my, 4, 2, skin.detail);
+    }
+    if (theme === "rainy") {
+      c.globalAlpha = 0.5;
+      for (const drip of [x + 8, x + 27])
+        line(c, drip, y + 7, drip, y + 25, skin.detail, 2);
+      c.globalAlpha = 1;
+    }
+  }
+  path(
+    c,
+    `M${x} ${y + 4}L${x + 4} ${y + 1}L${x + 15} ${y + 2}L${x + 21} ${y}L${x + width - 5} ${y + 1}L${x + width} ${y + 4}`,
+    "transparent",
+    skin.light,
+    4,
+    false,
+  );
+  line(c, x + width - 3, y + 5, x + width - 3, y + height, skin.shade, 4);
+  c.restore();
+  c.strokeStyle = C.ink;
+  c.lineWidth = 3;
+  c.lineJoin = "round";
+  c.beginPath();
+  c.moveTo(x + 1.5, y + height - 1.5);
+  c.lineTo(x + 1.5, y + 5);
+  c.lineTo(x + 7, y + 2);
+  c.lineTo(x + 17, y + 3);
+  c.lineTo(x + 24, y + 1.5);
+  c.lineTo(x + width - 7, y + 2);
+  c.lineTo(x + width - 1.5, y + 5);
+  c.lineTo(x + width - 1.5, y + height - 1.5);
+  c.closePath();
+  c.stroke();
 }
 
 function backdrop(c: Context, themeId: ArenaTheme) {
@@ -310,18 +400,7 @@ function backdrop(c: Context, themeId: ArenaTheme) {
   path(c, "M333 313L331 337L351 339L357 314Z", C.catTeam, C.catTeam, 0);
   c.restore();
 
-  const w = ARENA.wall;
-  c.fillStyle = C.mortar;
-  c.fillRect(w.x, w.y, w.width, w.height);
-  for (let row = 0; row < 8; row++) {
-    c.fillStyle = row % 3 === 0 ? C.brickDark : C.brick;
-    c.fillRect(w.x + 1, w.y + row * 20 + 1, w.width - 2, 17);
-    const seam = w.x + (row % 2 ? 12 : 28);
-    line(c, seam, w.y + row * 20, seam, w.y + row * 20 + 18, C.mortar, 2);
-  }
-  c.strokeStyle = C.ink;
-  c.lineWidth = 3;
-  c.strokeRect(w.x, w.y, w.width, w.height);
+  centerWall(c, themeId);
 
   if (THEMES[themeId].environment === "roof") {
     c.fillStyle = t.soil;
@@ -371,82 +450,14 @@ function weapon(
   side: Side,
   identity: WeaponId = side === "cat" ? "fishbone" : "bone",
 ) {
-  c.lineCap = "round";
-  if (identity === "yarn" || identity === "tennis") {
-    ellipse(c, 0, 0, 15, 15, identity === "yarn" ? "#df93aa" : "#c5d678", true);
-    path(
-      c,
-      identity === "yarn"
-        ? "M-13-6Q8-15 13 6M-13 2Q0-10 14-2M-10 10Q5-1 14 5"
-        : "M-10-11Q4 0-10 11M10-11Q-4 0 10 11",
-      "transparent",
-      "#fff0d4",
-      2,
-    );
-    return;
-  }
-  if (identity === "sardine" || identity === "tag") {
-    path(
-      c,
-      "M-17-8Q-22 0-17 8H15Q24 0 15-8Z",
-      identity === "tag" ? "#aabfc6" : "#91bfbc",
-    );
-    line(c, -10, -4, 10, -4, "#fff9e9", 2);
-    ellipse(c, 12, 0, 2, 2, C.ink);
-    return;
-  }
-  if (identity === "mouse") {
-    ellipse(c, 0, 0, 16, 10, "#b1a3c6", true);
-    ellipse(c, -6, -10, 6, 6, "#d8c9df", true);
-    line(c, -16, 0, -26, 6, "#b1a3c6", 3);
-    ellipse(c, 9, -2, 2, 2, C.ink);
-    return;
-  }
-  if (identity === "duck") {
-    ellipse(c, 0, 3, 17, 11, C.sun, true);
-    ellipse(c, 8, -9, 10, 10, C.sun, true);
-    path(c, "M15-10L26-6L15-3Z", C.dogTeam);
-    ellipse(c, 10, -12, 2, 2, C.ink);
-    return;
-  }
-  if (identity === "anchor") {
-    path(
-      c,
-      "M-13-4H13M0-15V14M-20 4Q0 29 20 4M-20 4L-20 12M20 4L20 12",
-      "transparent",
-      "#789aa8",
-      6,
-    );
-    ellipse(c, 0, -18, 5, 5, "#fff0d4", true);
-    return;
-  }
-  if (identity === "bigbone") c.scale(1.18, 1.18);
-  if (side === "cat") {
-    line(c, -17, 0, 17, 0, C.ink, 7);
-    line(c, -17, 0, 17, 0, "#fff0d4", 4);
-    for (const x of [-7, 1, 9]) {
-      line(c, x - 4, -7, x + 2, 0, "#fff0d4", 4);
-      line(c, x - 4, 7, x + 2, 0, "#fff0d4", 4);
-    }
-    path(c, "M-17 0L-25-8V8Z", "#fff0d4", C.ink, 1.5);
-    ellipse(c, 20, 0, 7, 7, "#fff0d4", true);
-    ellipse(c, 22, -2, 1.5, 1.5, C.ink);
-  } else {
-    path(
-      c,
-      "M-13-5Q-21-17-26-8Q-31 0-22 1Q-30 10-22 12Q-16 14-12 5H12Q17 16 24 10Q31 3 23 0Q30-7 24-11Q17-15 12-5Z",
-      "#fff0d4",
-      C.ink,
-      2,
-    );
-  }
+  drawWeapon(c, identity);
 }
 
 let hintKey = "";
 let hint: ReturnType<typeof simulateShot> | null = null;
 function drawAimGuide(c: Context, s: MatchState, reduced: boolean) {
   const style = characterFor(s.turn, s.setup.fighters);
-  const power = s.phase === "charging" ? Math.round(s.power / 3) * 3 : 55;
+  const power = s.phase === "charging" ? Math.round(s.power / 2) * 2 : 55;
   const key = [
     s.turn,
     s.angle,
@@ -469,21 +480,38 @@ function drawAimGuide(c: Context, s: MatchState, reduced: boolean) {
     });
   }
   if (!hint) return;
-  const properties = shotProperties(hint.input);
-  const duration = Math.min(hint.impact.point.time, properties.previewDuration);
+  const guide = aimGuidePoints(
+    hint,
+    power,
+    s.phase === "charging",
+    s.signatureSelected && style.id === "rex",
+  );
+  if (guide.length < 2) return;
+  const end = guide[guide.length - 1];
+  const tangent = Math.atan2(end.vy, end.vx);
   c.save();
-  for (let i = 1; i <= 10; i++) {
-    const point = trajectoryPointAt(hint, (duration * i) / 10);
-    c.globalAlpha = 0.8 * (1 - i / 12);
-    ellipse(
-      c,
-      point.x,
-      point.y,
-      reduced ? 2 : properties.previewRadius,
-      properties.previewRadius,
-      style.accent,
-    );
-  }
+  c.strokeStyle = style.accent;
+  c.lineWidth = reduced ? 3 : 4;
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  c.globalAlpha = 0.82;
+  c.beginPath();
+  c.moveTo(guide[0].x, guide[0].y);
+  for (const point of guide.slice(1)) c.lineTo(point.x, point.y);
+  c.stroke();
+  c.translate(end.x, end.y);
+  c.rotate(tangent);
+  c.fillStyle = style.accent;
+  c.beginPath();
+  c.moveTo(1, 0);
+  c.lineTo(-13, -8);
+  c.lineTo(-10, 0);
+  c.lineTo(-13, 8);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = C.ink;
+  c.lineWidth = 1.5;
+  c.stroke();
   c.restore();
 }
 function chargeDial(c: Context, s: MatchState, visualOffset: number) {
@@ -1006,7 +1034,7 @@ export class GameRenderer {
 
       if (!reduced) {
         c.save();
-        c.strokeStyle = projectileStyle.accent;
+        c.strokeStyle = WEAPON_ART[projectileStyle.weapon].trail;
         c.lineWidth = lowPower ? 3 : 4;
         c.globalAlpha = 0.3;
         c.beginPath();
@@ -1025,7 +1053,10 @@ export class GameRenderer {
 
       c.save();
       c.translate(point.x, point.y);
-      c.rotate(Math.atan2(point.vy, point.vx) + elapsed * 7);
+      c.rotate(
+        Math.atan2(point.vy, point.vx) +
+          elapsed * WEAPON_ART[projectileStyle.weapon].spinRate,
+      );
       c.scale(0.7, 0.7);
       weapon(c, flight.result.input.side, projectileStyle.weapon);
       c.restore();
@@ -1060,7 +1091,11 @@ export class GameRenderer {
             py,
             4 * (1 - age),
             3,
-            impact.kind === "target" ? t.sun : C.brick,
+            impact.kind === "target"
+              ? t.sun
+              : impactFighter
+                ? WEAPON_ART[impactFighter.weapon].impact
+                : C.brick,
           );
           if (impact.signature && impactFighter && i % 2 === 0) {
             c.save();

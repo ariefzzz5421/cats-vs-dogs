@@ -1,5 +1,16 @@
 # Arcade setup and roster verification — 30 September 2026
 
+## Aim, wind, weapon and readability polish — 30 September 2026
+
+- Audited `origin/main` and the live production URL before editing. Both still serve the older Customize interface; this polish continues the unmerged arcade-redesign branch and does not alter production directly.
+- Added rounded UI typography and a larger responsive type scale for setup, roster, trick descriptions, and battle controls. Setup actions now keep consistent bottom alignment; the fighter preview no longer clips its lower explanation.
+- Ten distinct vector weapons share one data-driven renderer for held, flying, trail and impact presentation. Six center-wall skins share the unchanged collision rectangle.
+- The aiming guide is a curved directional arrow sampled from the actual fixed-step `simulateShot` result. It shortens before first wall, fighter, ground, or boundary collision and extends while charging. Cat and Dog arrowheads follow their respective trajectory tangents.
+- The top-center wind barometer shows direction, numeric strength, category and turn. Wind was already generated once per turn with weighted randomness and applied as horizontal acceleration; this pass exposes those mechanics more clearly without changing the physics or game rules.
+- Added four regression tests for wind directions/strength, slow-vs-fast drift, arrow/contact sampling and wind labels. **37 tests passed**, lint passed and the production build passed.
+- Local production-build Chromium: inspected setup and battle at 1920×1080, 1366×768, 390×844 and 844×390; tested pointer charging, solo bot response, local Cat and Dog Space throws, and confirmed no page-level horizontal overflow. Physical-device/Safari performance and balance are still unverified.
+- Browser console: zero errors and warnings in the final verification run. Screenshots: `docs/qa/polish-fighters.png` and `docs/qa/polish-landscape.png`.
+
 ## Current release
 
 - Mandatory Home → Mode → Arena → Fighters → three-item Loadout → Ready → Battle flow. Saved selections remain highlighted, but an arena must be explicitly chosen on every fresh setup. Legacy appearance/difficulty preferences migrate safely.

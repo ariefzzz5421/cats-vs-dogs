@@ -19,9 +19,9 @@
   --color-metal: oklch(64% 0.035 225);
   --color-cat-tint: oklch(93% 0.045 215);
   --color-dog-tint: oklch(94% 0.045 55);
-  --font-body: var(--font-jakarta), "Trebuchet MS", sans-serif;
+  --font-body: var(--font-nunito), "Trebuchet MS", sans-serif;
   --font-display: var(--font-body);
-  --font-outlier: var(--font-jetbrains), monospace;
+  --font-outlier: var(--font-body);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);

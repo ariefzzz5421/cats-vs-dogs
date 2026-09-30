@@ -1,5 +1,6 @@
 import type { PointerEvent, RefObject } from "react";
 import { canControl } from "@/lib/game/engine";
+import { windStrengthLabel } from "@/lib/game/ballistics";
 import { characterFor, SIGNATURE_DETAILS } from "@/lib/game/characters";
 import { ABILITIES } from "@/lib/game/abilities";
 import type { Item, MatchState } from "@/lib/game/types";
@@ -37,15 +38,25 @@ export function BattleHUD({ state }: { state: MatchState }) {
         );
       })}
       <div className="wind">
-        <small>WIND / 10</small>
+        <small>WIND</small>
         <strong
-          aria-label={`Wind ${Math.abs(state.wind)} ${state.wind < 0 ? "left" : "right"}`}
+          key={state.turnIndex}
+          aria-label={`Wind ${Math.abs(state.wind).toFixed(1)} ${state.wind < 0 ? "left" : state.wind > 0 ? "right" : "calm"}, ${windStrengthLabel(state.wind)}`}
         >
           <span className="wind-arrow">
             {state.wind < 0 ? "←" : state.wind > 0 ? "→" : "—"}
           </span>
           {Math.abs(state.wind).toFixed(1)}
         </strong>
+        <div className="wind-scale" aria-hidden="true">
+          <span>←</span>
+          <i
+            className="wind-marker"
+            style={{ left: `${50 + state.wind * 5}%` }}
+          />
+          <span>→</span>
+        </div>
+        <b className="wind-strength">{windStrengthLabel(state.wind)}</b>
         <span className={`turn-chip ${state.turn}`} role="status">
           {state.turn.toUpperCase()} TURN · {state.turnIndex + 1}
         </span>
@@ -141,6 +152,10 @@ export function BattleControls({
         <div className="charge-readout">
           <span ref={chargeLabel}>{charging ? "LOW" : "POWER"}</span>
           <output ref={powerText}>{Math.round(s.power)}%</output>
+          <span className="charge-wind">
+            WIND {s.wind < 0 ? "←" : s.wind > 0 ? "→" : "—"}{" "}
+            {Math.abs(s.wind).toFixed(1)}
+          </span>
         </div>
         <div
           className="power-track"
